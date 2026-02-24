@@ -3,7 +3,19 @@
 > **Sources:**
 > - [Overview of workspace-level private links](https://learn.microsoft.com/en-us/fabric/security/security-workspace-level-private-links-overview)
 > - [Supported scenarios and limitations](https://learn.microsoft.com/en-us/fabric/security/security-workspace-level-private-links-support)
+> - [Blog: Fabric Workspace-Level Private Link Preview](https://blog.fabric.microsoft.com/en-US/blog/fabric-workspace-level-private-link-preview/) — Aug 20, 2025
+> - [Blog: Announcing GA of Workspace-Level Private Link](https://blog.fabric.microsoft.com/en-us/blog/announcing-general-availability-of-workspace-level-private-link-in-microsoft-fabric) — Oct 1, 2025
 > Last reviewed: 2026-02-24
+
+## Feature Timeline
+
+| Date | Event |
+|------|-------|
+| May 2024 | Tenant-level Private Link goes GA |
+| Aug 20, 2025 | Workspace-level Private Link enters **Preview** — API management only; Fabric portal configuration not supported |
+| Oct 1, 2025 | Workspace-level Private Link goes **GA** — Fabric portal management added |
+
+> **Why this matters for community content**: Any blog post, video, or forum post from before October 2025 saying workspace-level private links can only be configured via API is describing the Preview behavior. As of GA, the Fabric portal supports the full configuration workflow.
 
 ## What It Is
 

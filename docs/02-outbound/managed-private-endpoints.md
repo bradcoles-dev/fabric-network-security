@@ -1,7 +1,26 @@
 # Managed Private Endpoints
 
-> **Source:** [Overview of managed private endpoints for Microsoft Fabric](https://learn.microsoft.com/en-us/fabric/security/security-managed-private-endpoints-overview)
+> **Sources:**
+> - [Overview of managed private endpoints for Microsoft Fabric](https://learn.microsoft.com/en-us/fabric/security/security-managed-private-endpoints-overview)
+> - [Blog: Managed Private Endpoints Public Preview](https://blog.fabric.microsoft.com/en-us/blog/introducing-managed-private-endpoints-for-microsoft-fabric-in-public-preview/) — Feb 28, 2024
+> - [Blog: GA of Private Links, Trusted Workspace Access, and Managed Private Endpoints](https://blog.fabric.microsoft.com/en-us/blog/announcing-general-availability-of-fabric-private-links-trusted-workspace-access-and-managed-private-endpoints/) — May 31, 2024
+> - [Blog: APIs for Managed Private Endpoint now available](https://blog.fabric.microsoft.com/en-US/blog/apis-for-managed-private-endpoint-are-now-available/) — Oct 29, 2024
+> - [Blog: Eventstream MPE GA](https://blog.fabric.microsoft.com/en-us/blog/secure-data-streaming-with-private-endpoints-now-generally-available-in-eventstream) — Jul 16, 2025
+> - [Blog: Connecting to on-premises via Private Link Service](https://blog.fabric.microsoft.com/en-US/blog/securely-accessing-on-premises-data-with-fabric-data-engineering-workloads/) — Oct 22, 2025
 > Last reviewed: 2026-02-24
+
+## Feature Timeline
+
+| Date | Event |
+|------|-------|
+| Feb 28, 2024 | Managed Private Endpoints enter **Public Preview** — Fabric Data Engineering only; requires **F64 or higher** SKU |
+| May 31, 2024 | Managed Private Endpoints go **GA** — SKU requirement relaxed to **all F SKUs** (including trial); Azure Event Hub and IoT Hub added as supported sources |
+| Oct 29, 2024 | **REST APIs** for managed private endpoints released (Create, Delete, Get, List) |
+| Oct 7, 2024 | Eventstream MPE support enters **Preview** (Event Hub, IoT Hub sources) |
+| Jul 16, 2025 | Eventstream MPE goes **GA** — improved diagnostics, expanded regional coverage, new UI indicator for secure connections |
+| Oct 22, 2025 | MPE via **Private Link Service** (FQDN-based) announced — enables on-premises and non-Azure connectivity |
+
+> **SKU change note**: At preview launch, MPE required F64 or higher. At GA (May 2024) this was relaxed to all F SKUs including trial. Any pre-GA documentation or community content referencing an F64 minimum is outdated.
 
 ## What They Are
 

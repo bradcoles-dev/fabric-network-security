@@ -3,7 +3,16 @@
 > **Sources:**
 > - [About private links for secure access to Fabric](https://learn.microsoft.com/en-us/fabric/security/security-private-links-overview)
 > - [Set up and use a tenant-level private link](https://learn.microsoft.com/en-us/fabric/security/security-private-links-use)
+> - [Blog: Azure Private Link Support for Microsoft Fabric in Public Preview](https://blog.fabric.microsoft.com/en-US/blog/announcing-azure-private-link-support-for-microsoft-fabric-in-public-preview/) — Feb 28, 2024
+> - [Blog: GA of Private Links, Trusted Workspace Access, and Managed Private Endpoints](https://blog.fabric.microsoft.com/en-us/blog/announcing-general-availability-of-fabric-private-links-trusted-workspace-access-and-managed-private-endpoints/) — May 31, 2024
 > Last reviewed: 2026-02-24
+
+## Feature Timeline
+
+| Date | Event |
+|------|-------|
+| Feb 28, 2024 | Tenant-level Private Links enter **Public Preview** |
+| May 31, 2024 | Tenant-level Private Links go **GA** — same announcement as MPE and Trusted Workspace Access GA |
 
 ## What It Is
 

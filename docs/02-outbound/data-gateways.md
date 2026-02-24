@@ -4,7 +4,18 @@
 > - [On-premises data gateway](https://learn.microsoft.com/en-us/power-bi/connect-data/service-gateway-onprem)
 > - [VNet data gateway](https://learn.microsoft.com/en-us/data-integration/vnet/overview)
 > - [Microsoft Fabric end-to-end security scenario](https://learn.microsoft.com/en-us/fabric/security/security-scenario)
+> - [Blog: Mission-Critical Data Integration — What's New in Fabric Data Factory](https://blog.fabric.microsoft.com/en-us/blog/mission-critical-data-integration-whats-new-in-fabric-data-factory/) — Oct 2, 2025
+> - [Blog: Fabric October 2025 Feature Summary](https://blog.fabric.microsoft.com/en-us/blog/fabric-october-2025feature-summary) — Oct 29, 2025
 > Last reviewed: 2026-02-24
+
+## Feature Timeline
+
+| Date | Event |
+|------|-------|
+| Oct 2025 | **VNet data gateway for Pipelines and Copy Jobs** goes **GA** — previously only supported Dataflows Gen2 and semantic model refresh |
+| Oct 2025 | **VNet data gateway lifecycle controls** (start, stop, restart) go **GA** |
+
+> **Impact of VNet gateway GA for Pipelines**: Prior to Oct 2025, Data Factory Pipelines and Copy Jobs could only connect to private data sources via the on-premises data gateway or by using trusted workspace access. The VNet gateway GA added a fully managed, Azure-native option without requiring on-premises infrastructure.
 
 ## Overview
 
@@ -36,6 +47,7 @@ The VNet data gateway allows Fabric to inject compute containers into your Azure
 **Compatible with:**
 - Dataflows Gen2
 - Power BI semantic model refresh
+- Data Factory Pipelines and Copy Jobs (GA as of Oct 2025)
 - Works alongside tenant-level Private Link (unlike OPDG)
 
 **Common use case:** Connecting to Azure SQL, Azure Synapse, or other Azure PaaS services behind private endpoints or VNet firewalls.
@@ -51,6 +63,7 @@ The VNet data gateway allows Fabric to inject compute containers into your Azure
 | Azure SQL MI behind private endpoint | VNet Data Gateway |
 | Dataflows Gen2 with Azure data sources in VNet | VNet Data Gateway |
 | Dataflows Gen2 with on-premises data sources | On-Premises Data Gateway |
+| Pipelines / Copy Jobs connecting to Azure data sources in VNet | VNet Data Gateway (GA Oct 2025) |
 | Tenant Private Link enabled, need to connect to on-premises | VNet Data Gateway (OPDG not supported) |
 | Spark notebooks connecting to Azure data sources | Managed Private Endpoints (not gateway) |
 

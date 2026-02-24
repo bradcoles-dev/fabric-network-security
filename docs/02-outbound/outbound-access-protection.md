@@ -1,7 +1,21 @@
 # Workspace Outbound Access Protection
 
-> **Source:** [Workspace outbound access protection overview](https://learn.microsoft.com/en-us/fabric/security/workspace-outbound-access-protection-overview)
+> **Sources:**
+> - [Workspace outbound access protection overview](https://learn.microsoft.com/en-us/fabric/security/workspace-outbound-access-protection-overview)
+> - [Blog: Introducing Workspace Outbound Access Protection for Spark — Preview](https://blog.fabric.microsoft.com/en-us/blog/introducing-workspace-outbound-access-protection-for-spark-preview) — Sep 3, 2025
+> - [Blog: Fabric October 2025 Feature Summary](https://blog.fabric.microsoft.com/en-us/blog/fabric-october-2025feature-summary) — Oct 29, 2025
+> - [Blog: Mission-Critical Data Integration — What's New in Fabric Data Factory](https://blog.fabric.microsoft.com/en-us/blog/mission-critical-data-integration-whats-new-in-fabric-data-factory/) — Oct 2, 2025
 > Last reviewed: 2026-02-24
+
+## Feature Timeline
+
+| Date | Event |
+|------|-------|
+| Sep 3, 2025 | Outbound Access Protection for **Spark** (Data Engineering) enters **Preview** — only Data Engineering artifacts (Notebooks, Spark Job Definitions, Lakehouses, Environments) permitted in OAP-enabled workspaces at launch |
+| Oct 2, 2025 | Data Factory outbound access protection for **Pipelines and Copy Jobs** announced — "coming soon" in the Data Factory blog |
+| Oct 29, 2025 | OAP for Spark goes **GA** — announced in October 2025 Feature Summary; VNet gateway for Pipelines/Copy Jobs also confirmed GA |
+
+> **Preview workspace constraint**: At the Sep 2025 preview launch, workspaces enabling outbound access protection for Spark could only contain Data Engineering artifacts. Items from other workloads (e.g., warehouses, data factory pipelines) had to be in separate workspaces. Check current documentation for whether this constraint was relaxed at GA.
 
 ## What It Is
 
