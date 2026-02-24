@@ -104,6 +104,25 @@ Go to workspace settings → Encryption → disable "Apply customer-managed keys
 | Tenant setting dependency | Once the tenant encryption setting is off, CMK cannot be enabled/disabled for any workspace in that tenant; existing CMK workspaces remain encrypted with the customer key |
 | Unsupported items | Workspace must not contain unsupported items for CMK to be enabled |
 
+## Community Findings
+
+> **Source:** r/MicrosoftFabric (Oct 2025)
+
+**Key Vault References do not support vaults behind a firewall.**
+
+"Key Vault References" refers to the pattern of storing connection credentials (passwords, connection strings, API keys) in Azure Key Vault and referencing them in Data Factory linked services or pipeline connections — distinct from CMK.
+
+**The distinction:**
+
+| Use Case | Key Vault Behind Firewall | Mechanism |
+|----------|--------------------------|-----------|
+| CMK (encryption key management) | ✓ Supported | Fabric CMK service principal uses trusted Microsoft services bypass |
+| Key Vault References (credential storage for Data Factory connections) | ✗ Not supported | Fabric Data Factory runtime cannot resolve secrets from a network-restricted vault |
+
+**Potential workaround**: Azure Key Vault is a supported target for managed private endpoints. For Spark/Data Engineering workloads, creating an MPE to Key Vault may allow access to secrets via the private network path. Whether this resolves the Key Vault References limitation for Data Factory connections specifically is not confirmed.
+
+**Enterprise implication**: If your security policy requires Key Vault to be network-restricted, credential references in Data Factory pipelines and connections will not resolve. Plan to either keep the Key Vault publicly accessible (restricted by access policy only) or use an alternative credential pattern.
+
 ## Alternative: CMK via External Storage + Shortcuts
 
 For data that must be encrypted with CMK and is not covered by workspace CMK (e.g., Spark temp storage), an alternative pattern is to keep data on external storage (ADLS Gen2, AWS S3, GCS) that has CMK enabled, and access it via OneLake shortcuts.
