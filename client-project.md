@@ -67,16 +67,25 @@ Workspace-level Private Link is the right direction given the OPDG dependency (S
 ### 3. ZScaler — likely solvable but must be confirmed
 Adding Fabric FQDNs to ZScaler's bypass list is a standard configuration. The concern is not whether it's technically possible but whether the client's Cyber Security Operations team will approve it and how long the change process takes. Key FQDNs to bypass: `*.fabric.microsoft.com`, `*.analysis.windows.net`, `*.pbidedicated.windows.net`, `*.powerquery.microsoft.com`. Also need to confirm ZScaler egress IPs if workspace IP Firewall is being considered.
 
-### 4. Amazon S3 — OneLake shortcut is viable if treated as public endpoint
-OneLake supports native shortcuts to Amazon S3. The shortcut reads data in-place from S3 over the public internet — no VPN or Azure-to-AWS private connectivity needed. This is simpler than building a pipeline-based copy process.
+### 4. Amazon S3 — depends on whether "no public internet" is a hard requirement
 
-Considerations:
-- S3 bucket policy is the primary access control (S3 side)
-- If Outbound Access Protection is enabled on the workspace, Amazon S3 must be allowlisted as an endpoint-level rule
-- If CMK is in scope: disable shortcut caching for S3 shortcuts — cached data lands in OneLake without CMK coverage
-- This approach avoids the complexity of VPN-based private connectivity to AWS entirely
+OneLake supports native shortcuts to Amazon S3. The shortcut reads data in-place from S3 **over the public internet** — no VPN or Azure-to-AWS private connectivity is used.
 
-> **Recommendation**: Treat S3 as a public endpoint accessed via OneLake shortcut. Do not build VPN/private connectivity to AWS unless a separate compliance requirement mandates it.
+**If "no public internet" is not a hard requirement (or S3 is treated as an exception):**
+- S3 shortcut is the simplest path — no pipeline, no copying, no AWS-side infrastructure
+- S3 bucket policy provides access control on the AWS side
+- If Outbound Access Protection is enabled, Amazon S3 must be allowlisted as an endpoint-level rule
+- If CMK is in scope: disable shortcut caching — cached data lands in OneLake without CMK coverage
+
+**If "no public internet" is a hard requirement applying to all data paths:**
+- OneLake S3 shortcut is not compliant — it uses the public internet
+- Viable alternatives:
+  1. **Stage S3 to Azure Blob first** via an external process (e.g., AWS DataSync, AWS Lambda + SDK, or a third-party tool), then access Azure Blob from Fabric via private connectivity. This adds complexity and infrastructure outside Fabric.
+  2. **Accept S3 as a public exception** — argue that the connection is outbound from Fabric to a known endpoint (S3 bucket with policy), not inbound public access to Fabric. Depends on how the policy is written.
+  3. **Do not use S3** — if this source is not yet built, it may be worth questioning whether S3 is the right storage choice given the connectivity constraints.
+- There is no native Azure-to-AWS PrivateLink option supported by Fabric. Any private path would require complex Transit Gateway / VPN architecture that is disproportionate for a data ingestion use case.
+
+> **Action**: Confirm with Cyber Security Policy whether "no public internet" applies to outbound Fabric connections (not just inbound), and whether S3 as a public endpoint with bucket policy controls is acceptable.
 
 ### 5. Capacity Metrics App — confirmed significant gap
 If workspace-level Private Link is used (without tenant-level Block Public Internet Access), the Capacity Metrics App remains functional. This is another reason workspace-level PL is preferable — it preserves the app. The app only breaks under tenant-level PL with Block Public Internet Access enabled, which is not the recommended path here.
@@ -199,13 +208,25 @@ This single data source effectively decides the Private Link architecture. If Sy
 
 Every connectivity choice downstream depends on this. The options are meaningfully different:
 
-| Option | OPDG Works | Capacity Metrics App | Dev Experience | Operational Overhead |
-|--------|-----------|----------------------|----------------|----------------------|
-| No isolation | ✓ | ✓ | Simple | Low |
-| Workspace IP Firewall only | ✓ (if ZScaler handled) | ✓ | Simple | Low |
-| Workspace-level Private Link | ✓ | ✓ | DNS config required | Medium |
-| Tenant-level PL (no block) | Possibly | ✓ | DNS config required | Medium |
-| Tenant-level PL + Block Public | ✗ | ✗ | Fully isolated | High |
+| Option | OPDG Works | Capacity Metrics App | MIP Sensitivity Labels | Purview Scanning | Dev Experience | Operational Overhead |
+|--------|-----------|----------------------|------------------------|-----------------|----------------|----------------------|
+| No isolation | ✓ | ✓ | ✓ | ✓ | Simple — public internet | Low |
+| Workspace IP Firewall only | ✓ | ✓ | ✓ | ✓ | ZScaler egress IPs must be allowed; traffic still over public internet | Low |
+| Workspace-level Private Link | ✓ | ✓ | ✓ (unconfirmed) | Unconfirmed | Workspace-specific FQDNs (see below); DNS config via VPN required | Medium |
+| Tenant-level PL (no block) | Possibly | ✓ | ✓ | ✓ | Tenant-specific FQDN; DNS config via VPN required | Medium |
+| Tenant-level PL + Block Public | ✗ | ✗ | ✗ | Likely broken | Fully isolated; no public internet for any user | High |
+
+**What each option means in practice:**
+
+**No isolation**: Fabric is accessed over the public internet. Authentication and authorisation (Entra ID, workspace roles) are the only controls. Appropriate for non-sensitive environments (DEV).
+
+**Workspace IP Firewall only** *(FQDN = Fully Qualified Domain Name — the specific domain name used to address a resource)*: Restricts inbound access to Fabric based on the source IP address of the request. Traffic still travels over the public internet, but only from approved IP ranges. If ZScaler is in the path, ZScaler's egress IPs are what Fabric sees — not the user's corporate IP. Rules must be based on ZScaler egress IPs. Does not provide network-layer isolation (traffic is still public internet). Simple to configure, no DNS changes.
+
+**Workspace-level Private Link**: Each workspace gets its own private link service. A private endpoint in the customer's Azure VNet connects to that workspace. DNS must resolve the workspace-specific FQDN (e.g., `{workspaceid}.z{xy}.w.api.fabric.microsoft.com`) to a private IP — this must work through VPN + ZScaler. OPDG and Capacity Metrics App are unaffected (public internet still accessible for the rest of the tenant). MIP sensitivity label compatibility is unconfirmed and needs testing. Recommended model for this client.
+
+**Tenant-level PL (no block)**: Routes Fabric traffic through private endpoints but does not block public internet access. OPDG *may* still work (per MS employee guidance, Oct 2025). Less isolation than workspace-level PL in practice, with similar DNS overhead but applied tenant-wide. Less flexible than workspace-level — cannot do per-workspace isolation.
+
+**Tenant-level PL + Block Public Internet Access**: Full isolation — all public Fabric endpoints blocked. OPDG registration fails (hard blocker given Sybase dependency). Capacity Metrics App stops working. MIP sensitivity labels stop working. Genesys PureCloud and other public API connections from Fabric may be affected. Not viable for this client given the Sybase ASE, Capacity Metrics App, and Purview requirements.
 
 This decision needs to come from Cyber Security Policy, not be inferred from general security posture.
 
@@ -336,10 +357,10 @@ Owns the data strategy, data governance, business unit access, and data product 
   - Remaining PROD workspaces → Workspace IP Firewall or workspace-level PL without public restriction
   - UAT → Workspace IP Firewall
   - DEV → Entra/Conditional Access only
-- **Amazon S3** — treat as a public endpoint via OneLake shortcut. Do not build Azure-to-AWS private connectivity unless mandated by compliance.
-- **OPDG** required for Sybase ASE and MS SQL Server. One OPDG cluster (HA) serving all on-premises sources. Must be installed with ODBC drivers for Sybase.
-- **Azure SQL control DB** — VNet Data Gateway for Pipeline connectivity. Network configuration TBD at provisioning time.
-- **Managed Private Endpoints** — for Spark Notebook connections to Azure Blob Storage and any other Azure PaaS sources accessed from Notebooks.
+- **Amazon S3** — if public internet is acceptable: OneLake shortcut is the simplest path. If "no public internet" is a hard requirement: S3 must be staged to Azure Blob first via an external process. Confirm policy scope with Cyber Security Policy.
+- **OPDG** — required for Sybase ASE (ODBC driver, no alternative). For MS SQL Server: VNet Data Gateway is viable if VPN/ExpressRoute connects the Azure VNet to on-premises; otherwise OPDG is also needed for SQL Server. Confirm once on-premises connectivity topology is known.
+- **Azure SQL control DB** — VNet Data Gateway for Pipeline connectivity only (Notebooks do not interact with control DB). Network configuration TBD at provisioning time.
+- **Managed Private Endpoints** — for Spark Notebook connections to Azure Blob Storage if required. Note: Notebooks are expected to access Fabric Lakehouses only — if that remains true, no MPEs are needed for Notebooks.
 - **Genesys PureCloud** — public endpoint; allowlist in Outbound Access Protection if that is enabled.
 - **ZScaler bypass rules** for Fabric FQDNs must be in place before any Private Link testing begins.
 - **Workspace provisioning runbook must enforce**: restrict public access *before* creating Lakehouse/Warehouse items to avoid default semantic model incompatibility.
