@@ -174,3 +174,17 @@ Before disabling the Private Link setting:
 4. Allow up to 15 minutes for changes to propagate
 
 If private endpoints exist in your VNet but Private Link is disabled, connections from that VNet may fail. Schedule disablement during non-business hours.
+
+## Community Findings
+
+> **Source:** r/MicrosoftFabric (Apr 2025)
+
+### Environment Isolation via Separate Subnets
+
+A community post recommended isolating DEV/QA/PROD Fabric environments using separate VNet subnets with individual NSGs and route tables — for example, DEV capacity → Subnet A, QA → Subnet B, PROD → Subnet C. The concept is sound but the architecture depends on which Private Link model is used:
+
+**With tenant-level Private Link**: A single private endpoint connects to the entire Fabric tenant — it does not scope to individual capacities or workspaces. Environment isolation via separate subnets still provides NSG-level traffic control between environments, but the network boundary is the tenant, not the workspace or capacity.
+
+**With workspace-level Private Link (GA Oct 2025)**: Each workspace gets its own private link service. Separate private endpoints per environment workspace (in separate subnets) creates genuine per-workspace network isolation — this is the cleaner model for DEV/QA/PROD separation and is the architecture the community post was describing in spirit, even though workspace-level PL wasn't available when written.
+
+> **Recommendation**: For environment isolation, workspace-level Private Link with per-environment subnets and NSGs is the preferred architecture over tenant-level Private Link with subnet separation alone.

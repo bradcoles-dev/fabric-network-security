@@ -112,6 +112,25 @@ The OPDG needs to reach Fabric's public endpoints to register. If the gateway VM
 
 ---
 
+---
+
+> **Source:** r/MicrosoftFabric (Apr 2025)
+
+**"Enable Private Link and OPDG stops working — migrate to VNet gateway"**
+
+This was the consensus view in early 2025 and is partially correct, but overstated:
+
+- **Accurate**: OPDG is officially unsupported with tenant-level Private Link, and VNet Data Gateway is the recommended replacement for Azure-hosted data sources.
+- **Overstated**: The post states OPDG "will stop working once Private Link is enabled." As clarified by a Microsoft employee in Oct 2025, the actual break condition is **Block Public Internet Access** (the second tenant setting), not enabling Azure Private Link alone. If the OPDG VM can still resolve public Fabric endpoints, registration may succeed even with Private Link enabled.
+
+**"VNet gateway can't reach on-prem sources — use ADF SHIR"**
+
+- **Accurate**: VNet Data Gateway is designed for Azure resources within a VNet. It cannot reach purely on-premises systems (AS/400, SQL Server, file shares) unless the VNet has VPN or ExpressRoute connectivity back to the on-premises network.
+- **Incomplete**: OPDG installed on a VM with VPN/ExpressRoute to on-premises is also a valid option — not just ADF Self-Hosted Integration Runtime (SHIR). ADF SHIR introduces a separate Azure Data Factory service, additional cost, and infrastructure overhead across environments. OPDG avoids that if Block Public Internet Access is not enabled.
+- **Context**: This post predates workspace-level Private Link (GA Oct 2025) and VNet gateway support for Pipelines/Copy Jobs (GA Oct 2025), both of which expand the available architecture patterns.
+
+---
+
 **Gaps in the community comparison:**
 - **OPDG + tenant Private Link incompatibility not mentioned**: OPDG cannot register when tenant-level Private Link is enabled — a hard blocker for enterprises that have enabled tenant PL. This was true at the time of the post and remains true.
 - **VNet gateway workload scope unstated**: At Jul 2025, VNet gateway did not yet support Pipelines/Copy Jobs (that was Oct 2025 GA). The comparison implied general applicability.
