@@ -406,9 +406,41 @@ The question to put to Cyber Security Policy: **"Which specific control in our c
 - If there is no VPN/ExpressRoute from on-premises to Azure, VNet Data Gateway cannot reach on-premises SQL Server — meaning OPDG is required regardless of other choices. Confirm the connectivity topology before any Private Link discussion.
 
 **With Head of Data:**
-- Deployment Pipelines (CI/CD between DEV/UAT/PROD) cannot be used on workspaces with restricted public access. If the team plans to use Deployment Pipelines for release management, workspace-level PL with public access restriction on those workspaces is incompatible. This is a development workflow decision, not just a security one.
+- Deployment Pipelines (CI/CD between DEV/UAT/PROD) cannot be used on workspaces with restricted public access. If the team plans to use Deployment Pipelines for release management, workspace-level PL with public access restriction on those workspaces is incompatible. This is a development workflow decision, not just a security one. See deployment strategy note below.
 - Business unit users accessing Silver and Gold lakehouses via browser or Power BI Desktop need their DNS to resolve workspace-specific FQDNs correctly through VPN. Any user who is not on the VPN or whose ZScaler config is not correct will be locked out. Confirm the business unit access model before restricting public access on consumer workspaces.
 - Spark cold start increases from ~30 seconds to 3–5 minutes once a managed VNet is provisioned (triggered by Private Link). This affects pipeline schedule design and SLA commitments.
+
+### Deployment Strategy: How to Deploy to PROD with Workspace-Level PL
+
+The constraint: workspaces with **public access restricted** cannot be part of a Fabric Deployment Pipeline. This means the standard "Deploy to PROD" button in the Fabric portal does not work for restricted workspaces. Three options:
+
+**Option 1 — Workspace-level PL without restricting public access on PROD**
+
+Configure the private link service on PROD workspaces but do not block public access. Deployment Pipelines continue to work. The private path exists for users who use it; the public path is not closed.
+
+- Deployment Pipelines: ✓ works
+- Isolation: partial — private link configured but public internet not blocked
+- Security posture: defensible if policy requires "private link in place" rather than "public access blocked"
+- Simplest to implement; weakest of the three
+
+**Option 2 — Git-based CI/CD (Azure DevOps or GitHub)**
+
+Each Fabric workspace connects to a branch in a Git repository. Deployment to PROD happens by merging to the PROD branch; Fabric syncs automatically. No Deployment Pipeline needed.
+
+- Deployment Pipelines: not used
+- Isolation: full — PROD workspace can have public access restricted
+- Additional benefit: full version control, PR review process, audit trail in Git — more mature than Deployment Pipelines for enterprise environments
+- Requires Git integration setup per workspace and a branching strategy (e.g., DEV → `dev` branch, UAT → `uat` branch, PROD → `main`)
+- **Recommended for PROD**
+
+**Option 3 — Hybrid**
+
+Deployment Pipelines for DEV → UAT (neither environment has public access restricted). Git-based deployment for UAT → PROD (PROD has restricted access, so Deployment Pipelines cannot be used for that stage).
+
+- Gives development iteration convenience (Deployment Pipelines) with production rigour (Git)
+- Reasonable middle ground during transition
+
+> **Recommendation**: Option 2 (full Git-based CI/CD) is the right enterprise pattern regardless of Private Link — it provides audit trail, rollback, and code review that Deployment Pipelines do not. The Private Link constraint is a forcing function toward better practice. Raise this with the Head of Data as a CI/CD maturity conversation, not just a security constraint.
 
 ### The Recommended Position to Defend
 
