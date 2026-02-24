@@ -212,7 +212,7 @@ Every connectivity choice downstream depends on this. The options are meaningful
 |--------|-----------|----------------------|------------------------|-----------------|----------------|----------------------|
 | No isolation | ✓ | ✓ | ✓ | ✓ | Simple — public internet | Low |
 | Workspace IP Firewall only | ✓ | ✓ | ✓ | ✓ | ZScaler egress IPs must be allowed; traffic still over public internet | Low |
-| Workspace-level Private Link | ✓ | ✓ | ✓ (unconfirmed) | Unconfirmed | Workspace-specific FQDNs (see below); DNS config via VPN required | Medium |
+| Workspace-level Private Link | ✓ | ✓ (needs confirmation — see note) | ✓ (unconfirmed) | Unconfirmed | Workspace-specific FQDNs (see below); DNS config via VPN required | Medium |
 | Tenant-level PL (no block) | Possibly | ✓ | ✓ | ✓ | Tenant-specific FQDN; DNS config via VPN required | Medium |
 | Tenant-level PL + Block Public | ✗ | ✗ | ✗ | Likely broken | Fully isolated; no public internet for any user | High |
 
@@ -221,6 +221,8 @@ Every connectivity choice downstream depends on this. The options are meaningful
 **No isolation**: Fabric is accessed over the public internet. Authentication and authorisation (Entra ID, workspace roles) are the only controls. Appropriate for non-sensitive environments (DEV).
 
 **Workspace IP Firewall only** *(FQDN = Fully Qualified Domain Name — the specific domain name used to address a resource)*: Restricts inbound access to Fabric based on the source IP address of the request. Traffic still travels over the public internet, but only from approved IP ranges. If ZScaler is in the path, ZScaler's egress IPs are what Fabric sees — not the user's corporate IP. Rules must be based on ZScaler egress IPs. Does not provide network-layer isolation (traffic is still public internet). Simple to configure, no DNS changes.
+
+> **Capacity Metrics App note**: The documented incompatibility with the Capacity Metrics App is specific to **tenant-level** Private Link. With workspace-level PL (no tenant-level PL), public Fabric endpoints remain accessible for the rest of the tenant — the Capacity Metrics App should therefore still function. This needs to be confirmed by testing before it is relied upon in architecture decisions.
 
 **Workspace-level Private Link**: Each workspace gets its own private link service. A private endpoint in the customer's Azure VNet connects to that workspace. DNS must resolve the workspace-specific FQDN (e.g., `{workspaceid}.z{xy}.w.api.fabric.microsoft.com`) to a private IP — this must work through VPN + ZScaler. OPDG and Capacity Metrics App are unaffected (public internet still accessible for the rest of the tenant). MIP sensitivity label compatibility is unconfirmed and needs testing. Recommended model for this client.
 
@@ -365,3 +367,66 @@ Owns the data strategy, data governance, business unit access, and data product 
 - **ZScaler bypass rules** for Fabric FQDNs must be in place before any Private Link testing begins.
 - **Workspace provisioning runbook must enforce**: restrict public access *before* creating Lakehouse/Warehouse items to avoid default semantic model incompatibility.
 - **Purview sensitivity labels** — confirm whether MIP labelling is required before deciding on isolation model. If mandatory, tenant-level PL is ruled out (workspace-level PL impact on MIP is unconfirmed and needs testing).
+
+---
+
+## Stakeholder Steering Strategy
+
+The client will likely default toward maximum isolation ("Tenant-level PL + Block Public") because it sounds most secure. The consultant's interest is in a simpler, more implementable architecture. These interests align when the client is helped to understand what they are actually trading away — and whether the trade is worth making.
+
+The goal is not to under-engineer security. It is to help the client design to their actual requirements rather than to a theoretical maximum.
+
+### The Core Argument: Perimeter Security vs. Zero Trust
+
+Network isolation (Private Link) is a perimeter security control — it assumes that restricting network access makes data safer. Microsoft's own recommended model for modern cloud security is Zero Trust, which does not rely on network perimeter:
+
+- Every access request is authenticated via Entra ID (already in place)
+- Conditional Access enforces device compliance, MFA, and location
+- Workspace roles and item permissions enforce least-privilege data access
+- All data in transit is encrypted (TLS 1.2+), all data at rest is encrypted by Microsoft
+
+The question to put to Cyber Security Policy: **"Which specific control in our compliance framework requires network isolation, and does Entra ID + Conditional Access + encryption not satisfy that control?"** Most clients cannot answer this with a specific citation. When they have to justify it in writing, the requirement often softens.
+
+### Arguments to Use Per Stakeholder
+
+**With Head of Cyber Security Policy:**
+- Ask for the specific compliance mandate, not the general aspiration. ISO 27001 A.8.20 (network controls) can be satisfied by Conditional Access and encryption — it does not mandate Private Link specifically.
+- Sensitivity labels via Microsoft Purview stop working with tenant-level Private Link. If their Purview investment and data governance programme depend on labelling, full isolation undermines it. This is a policy conflict within their own security requirements.
+- "No public internet" as an absolute policy is not achievable with all Fabric features regardless of which Private Link option is chosen. The Capacity Metrics App, OPDG registration, and Genesys PureCloud are all public internet dependencies. Establish what "no public internet" actually means in practice.
+
+**With Head of Cyber Security Operations:**
+- Full tenant Private Link with Block Public Internet Access means OPDG registration fails — the Sybase ASE ingestion pipeline does not run on day one. That is an operational incident, not a security win.
+- The Capacity Metrics App stops working under full tenant PL. Capacity management and cost control in production depend on it. Ask who owns the risk of having no capacity visibility in PROD.
+- ZScaler bypass rules must be in place before Private Link works for any user. The change management process for that config change is a dependency on the entire project timeline — surface it as a project risk early.
+- Managed Private Endpoint approval requests appear in the Azure Portal. Operations needs a defined workflow to approve or reject them. Without one, ingestion pipelines stall waiting for approvals. This is an operational overhead that does not exist without Private Link.
+
+**With Head of Architecture:**
+- Workspace-level Private Link across 10–20 workspaces × 3 environments means 30–60+ private endpoints, DNS entries, and private link services to provision and maintain. This is ongoing operational complexity that lives in the Azure platform team, not in the Fabric team. Confirm that the Azure platform team has capacity to own this.
+- DNS for workspace-specific FQDNs must be resolvable through VPN and ZScaler for every developer and business user. One misconfigured DNS entry silently breaks access to a workspace. Confirm the DNS management ownership and change process.
+- If there is no VPN/ExpressRoute from on-premises to Azure, VNet Data Gateway cannot reach on-premises SQL Server — meaning OPDG is required regardless of other choices. Confirm the connectivity topology before any Private Link discussion.
+
+**With Head of Data:**
+- Deployment Pipelines (CI/CD between DEV/UAT/PROD) cannot be used on workspaces with restricted public access. If the team plans to use Deployment Pipelines for release management, workspace-level PL with public access restriction on those workspaces is incompatible. This is a development workflow decision, not just a security one.
+- Business unit users accessing Silver and Gold lakehouses via browser or Power BI Desktop need their DNS to resolve workspace-specific FQDNs correctly through VPN. Any user who is not on the VPN or whose ZScaler config is not correct will be locked out. Confirm the business unit access model before restricting public access on consumer workspaces.
+- Spark cold start increases from ~30 seconds to 3–5 minutes once a managed VNet is provisioned (triggered by Private Link). This affects pipeline schedule design and SLA commitments.
+
+### The Recommended Position to Defend
+
+**Workspace-level Private Link on PROD consumer workspaces (Gold, Semantic Model, Reporting) only, with Workspace IP Firewall on all other workspaces.** This is a defensible, professionally responsible recommendation because:
+
+1. It isolates the layer where sensitive data reaches the widest audience — the consumer layer
+2. It does not break OPDG, the Capacity Metrics App, Purview sensitivity labels, or Deployment Pipelines
+3. It scales manageably — 3–5 consumer workspaces across environments rather than 30–60
+4. It satisfies a "network isolation for sensitive data" policy requirement if one exists
+5. It can be extended later if requirements change — adding workspace PL to more workspaces is straightforward; removing tenant-level PL after it is in place is disruptive
+
+The client gets meaningful, demonstrable network isolation on the workspaces that matter most. The implementation remains manageable. The operational gaps are avoided.
+
+### What to Confirm Before Finalising the Recommendation
+
+- [ ] Does a specific compliance mandate require network isolation, and which control?
+- [ ] Is Purview sensitivity labelling a hard requirement?
+- [ ] Is the Capacity Metrics App required in PROD? (Confirms workspace-level PL is viable and tenant-level PL is not)
+- [ ] Are Deployment Pipelines planned for DEV → UAT → PROD promotion?
+- [ ] What does "no public internet" specifically mean — inbound to Fabric, outbound from Fabric, or both?
+- [ ] Confirm the Capacity Metrics App functions under workspace-level PL (requires testing)
