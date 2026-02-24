@@ -65,6 +65,10 @@ Where:
 | Both tenant and workspace private link (same VNet) | Private IP (workspace-level takes precedence) |
 | Workspace-level private link for a **different** workspace | Public IP (if fallback enabled) or fails |
 
+## Roadmap
+
+> **Q1 2026 (GA)**: Workspace-level Private Link support for **SQL Database** is on the official roadmap. As of 2026-02-24 this item is listed for Q1 2026 — it may already be released or will release by end of March 2026. See [roadmap.md](../00-overview/roadmap.md).
+
 ## Supported Item Types
 
 The following item types support workspace-level private links:

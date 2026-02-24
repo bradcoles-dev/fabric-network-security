@@ -3,7 +3,12 @@
 > **Sources:**
 > - [About workspace IP firewall rules](https://learn.microsoft.com/en-us/fabric/security/security-workspace-level-firewall-overview)
 > - [Set up workspace IP firewall rules](https://learn.microsoft.com/en-us/fabric/security/security-workspace-level-firewall-set-up)
+> - [Microsoft Fabric Roadmap](https://roadmap.fabric.microsoft.com/?product=administration%2Cgovernanceandsecurity)
 > Last reviewed: 2026-02-24
+
+## Roadmap
+
+> **Q1 2026 (GA)**: Workspace Public IP Firewall is listed on the official roadmap for GA in Q1 2026. This confirms the feature was previously in preview. As of 2026-02-24 this may already be released or will release by end of March 2026. See [roadmap.md](../00-overview/roadmap.md).
 
 ## What It Is
 
