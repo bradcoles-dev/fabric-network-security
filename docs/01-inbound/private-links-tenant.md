@@ -95,7 +95,7 @@ Users accessing Fabric from outside the private network (or without proper DNS r
 
 | Feature | Impact |
 |---------|--------|
-| On-premises data gateway | **Does not work; fails to register** — use VNet data gateway instead |
+| On-premises data gateway | **Officially unsupported** — fails reliably when Block Public Internet Access is enabled; may work if only Azure Private Link is enabled (VM can still reach public Fabric endpoints). Microsoft recommendation: use workspace-level Private Link instead of tenant-level if OPDG must remain functional. See [data-gateways.md](../02-outbound/data-gateways.md). |
 | Publish to Web (Power BI) | Not supported |
 | Email subscriptions | Not supported when Block Public Internet Access is enabled |
 | Export Power BI report to PDF/PowerPoint | Not supported |

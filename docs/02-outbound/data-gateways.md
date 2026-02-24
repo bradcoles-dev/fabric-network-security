@@ -35,8 +35,8 @@ The OPDG is installed on a server within your network. It acts as a bridge: Fabr
 - Data Factory Pipelines (copy activity, pipeline activities)
 - Power BI semantic model refresh
 
-**Not compatible with:**
-- Tenant-level Private Link — **OPDG fails to register when tenant Private Link is enabled**. This is a hard limitation. If your tenant uses Private Link, you must use VNet data gateways.
+**Not compatible with (officially):**
+- Tenant-level Private Link — Microsoft documents OPDG as unsupported with tenant-level Private Link. However, see Community Findings below for important nuance on what "not supported" means in practice.
 
 **Clustering:** Gateway servers can be clustered for high availability and load balancing.
 
@@ -69,7 +69,7 @@ The VNet data gateway allows Fabric to inject compute containers into your Azure
 
 ## Limitations and Considerations
 
-- **OPDG + Tenant Private Link**: These are mutually exclusive. OPDG does not work when tenant Private Link is enabled.
+- **OPDG + Tenant Private Link**: Officially unsupported — see Community Findings for real-world nuance.
 - **VNet Data Gateway download diagnostics**: Does not work with Private Links.
 - **OPDG for non-Power BI apps (PowerApps, Logic Apps)**: On-premises gateway not supported when Fabric tenant Private Link is enabled; use VNet data gateway.
 - **Dataflow Gen1**: Does not support outbound access protection — not an option if strict outbound control is needed.
@@ -84,6 +84,33 @@ A community post compared the three main outbound connectivity options (TWA, OPD
 - OPDG placed inside a VNet with a private endpoint to storage is a valid and secure configuration
 - VNet Data Gateway is Microsoft-managed and avoids the operational overhead of self-managed gateway infrastructure
 - Express Route to a VNet with a private endpoint is a valid path for OPDG on-premises scenarios
+
+---
+
+> **Source:** r/MicrosoftFabric (Oct 2025) — confirmed by Microsoft employee response
+
+**OPDG + Tenant Private Link: "not supported" does not mean "always broken"**
+
+A user reported OPDG working in a tenant with Private Link enabled, contradicting the official documentation. A Microsoft employee clarified:
+
+- *"Not supported = not tested or doesn't work in all cases"*
+- *"Registering a GW mostly works if the VM resolves the public IPs for Power BI"*
+- *"Recommendation is to use workspace-level private link instead of tenant-level"*
+
+**The real break condition is the second tenant setting — Block Public Internet Access:**
+
+| Tenant Setting | Block Public Access | OPDG Registration |
+|----------------|--------------------|--------------------|
+| Azure Private Link only | Off | May work — OPDG VM can still reach public Fabric endpoints |
+| Azure Private Link + Block Public Internet Access | On | Reliably fails — public Fabric endpoints unreachable from OPDG VM |
+
+The OPDG needs to reach Fabric's public endpoints to register. If the gateway VM still has a path to public internet (i.e., Block Public Internet Access is not enabled), registration can succeed even with Private Link enabled.
+
+**Microsoft's recommendation**: Prefer **workspace-level Private Link** over tenant-level if you need to keep OPDG functional. Workspace-level PL isolates individual workspaces without blocking public access across the whole tenant — OPDG in non-restricted workspaces continues to work normally.
+
+> **Enterprise implication**: If you're told "Private Link is enabled and OPDG doesn't work," ask which of the two tenant settings is active. The Azure Private Link setting alone may not be the blocker — Block Public Internet Access is likely the actual cause.
+
+---
 
 **Gaps in the community comparison:**
 - **OPDG + tenant Private Link incompatibility not mentioned**: OPDG cannot register when tenant-level Private Link is enabled — a hard blocker for enterprises that have enabled tenant PL. This was true at the time of the post and remains true.
