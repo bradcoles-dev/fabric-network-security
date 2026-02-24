@@ -95,3 +95,14 @@ There is an alternative to resource instance rules: the **trusted service except
 - Connections for trusted workspace access can be created in **Manage connections and gateways**, but workspace identity is the only supported auth method
 - Test connection will fail if organizational account or service principal is used as auth method in this UI
 - If semantic models use personal cloud connections, only workspace identity is supported for trusted access
+
+## Community Findings
+
+> **Source:** r/MicrosoftFabric (Jul 2025)
+
+A community comparison of outbound connectivity options ranked TWA as "easiest but least secure." This framing is worth examining:
+
+- **What's accurate**: The storage account endpoint remains publicly addressable even with TWA. The resource instance rule opens access to the workspace identity, but an attacker who compromised the workspace identity could reach the storage account from anywhere. This is meaningfully different from a private endpoint, where the storage account is not reachable from the public internet at all.
+- **What's misleading**: "Least secure" implies weak authentication. TWA authentication is Entra ID / workspace identity — the same credential model as MPEs. The risk difference is network exposure, not authentication strength.
+- **The right framing**: TWA is the lowest-friction option but does not provide network-layer isolation. For environments where the storage account must not be publicly addressable under any circumstances, TWA is insufficient — use managed private endpoints (Spark) or VNet data gateway (Pipelines/Dataflows).
+- **Scope reminder**: TWA only applies to **ADLS Gen2**. It is not an option for Azure SQL, Azure SQL MI, Cosmos DB, or other data sources.

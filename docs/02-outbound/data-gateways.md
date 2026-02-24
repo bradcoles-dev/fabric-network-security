@@ -74,6 +74,23 @@ The VNet data gateway allows Fabric to inject compute containers into your Azure
 - **OPDG for non-Power BI apps (PowerApps, Logic Apps)**: On-premises gateway not supported when Fabric tenant Private Link is enabled; use VNet data gateway.
 - **Dataflow Gen1**: Does not support outbound access protection — not an option if strict outbound control is needed.
 
+## Community Findings
+
+> **Source:** r/MicrosoftFabric (Jul 2025)
+
+A community post compared the three main outbound connectivity options (TWA, OPDG, VNet gateway) and made several useful observations, with some gaps worth noting:
+
+**Accurate points:**
+- OPDG placed inside a VNet with a private endpoint to storage is a valid and secure configuration
+- VNet Data Gateway is Microsoft-managed and avoids the operational overhead of self-managed gateway infrastructure
+- Express Route to a VNet with a private endpoint is a valid path for OPDG on-premises scenarios
+
+**Gaps in the community comparison:**
+- **OPDG + tenant Private Link incompatibility not mentioned**: OPDG cannot register when tenant-level Private Link is enabled — a hard blocker for enterprises that have enabled tenant PL. This was true at the time of the post and remains true.
+- **VNet gateway workload scope unstated**: At Jul 2025, VNet gateway did not yet support Pipelines/Copy Jobs (that was Oct 2025 GA). The comparison implied general applicability.
+- **"MPE is only for Spark" was already slightly inaccurate**: Eventstream MPE went GA Jul 16, 2025. MPEs are not exclusively Spark.
+- **TWA scope omitted**: TWA only works with ADLS Gen2 — presenting it as a general option without this constraint is misleading.
+
 ## Common Misconception: "Pipelines Can't Use Private Endpoints"
 
 > **Community source:** r/MicrosoftFabric (Nov 2025) — *"As far as I'm aware, Pipelines can't use Private Endpoints, so you need a Gateway (vnet or install)."*
