@@ -40,6 +40,8 @@ When a managed private endpoint is created, Fabric provisions it in a **managed 
 - **Fabric Data Engineering**: Notebooks (Spark and Python runtimes), Lakehouses, Spark Job Definitions
 - **Eventstream**: Secure connections to Azure resources via managed private endpoints (Preview)
 
+> **Not supported**: Data Factory Pipelines and Copy Jobs cannot use managed private endpoints. For Pipelines connecting to private data sources, use VNet Data Gateway (GA Oct 2025) or On-Premises Data Gateway. See [data-gateways.md](data-gateways.md).
+
 ## Supported Data Sources
 
 Managed private endpoints support Azure PaaS services. Common examples:

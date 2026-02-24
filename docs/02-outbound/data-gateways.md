@@ -73,3 +73,14 @@ The VNet data gateway allows Fabric to inject compute containers into your Azure
 - **VNet Data Gateway download diagnostics**: Does not work with Private Links.
 - **OPDG for non-Power BI apps (PowerApps, Logic Apps)**: On-premises gateway not supported when Fabric tenant Private Link is enabled; use VNet data gateway.
 - **Dataflow Gen1**: Does not support outbound access protection — not an option if strict outbound control is needed.
+
+## Common Misconception: "Pipelines Can't Use Private Endpoints"
+
+> **Community source:** r/MicrosoftFabric (Nov 2025) — *"As far as I'm aware, Pipelines can't use Private Endpoints, so you need a Gateway (vnet or install)."*
+
+This was **accurate before October 2025** but is now outdated. The distinction to understand:
+
+- **Managed Private Endpoints (MPEs)**: Pipelines still cannot use MPEs — that mechanism is exclusive to Data Engineering (Spark) workloads (Notebooks, Spark Job Definitions, Lakehouses) and Eventstream.
+- **Connecting to resources behind private endpoints**: Pipelines CAN do this via VNet Data Gateway, which went GA for Pipelines and Copy Jobs in October 2025.
+
+The commenter's pattern — using Notebooks for everything so they can use MPEs — remains valid. But "Pipelines have no private endpoint option" is no longer accurate. Community content predating Oct 2025 making this claim reflects the pre-GA state.
