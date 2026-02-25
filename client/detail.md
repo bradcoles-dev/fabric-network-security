@@ -38,12 +38,57 @@ Three workspaces: **DEV**, **UAT**, **PROD**
 
 ---
 
+## RFP Security Requirements
+
+The RFP contains **no mention of Private Link, network isolation, VNet, or private endpoints**. The explicit security requirements, and their implementation status and gaps, are:
+
+| Requirement | Priority | Approach | Gaps / Risks |
+|-------------|----------|----------|--------------|
+| IaC (Terraform) + deployment gates | Must Have | AzureRM provider; Azure DevOps pipelines; deployment gates via ADO Environments | Not all Fabric artifacts are Terraform-manageable; some config (workspace-level PL, CMK) requires REST API — scope must be agreed |
+| Microsoft Defender for Cloud Apps | Must Have | MDCA monitors Fabric activity; anomaly detection for data access | MDCA (Cloud Apps) is distinct from Defender for Cloud (Azure Security Center) — confirm which is in scope |
+| Security monitoring + threat detection | Must Have | Fabric audit logs → Log Analytics / Sentinel | Fabric Activity Tracking must be explicitly configured and exported; not on by default |
+| Security alerts + incident response | Must Have | Microsoft Sentinel integration | Requires Log Analytics + Sentinel workspace setup |
+| Penetration testing | Must Have | Third-party, CREST/CEH/OSCP certified | Client responsibility to commission; out of scope for platform build |
+| Row/column-level access controls | Must Have | RLS (semantic models); CLS (Warehouse); lakehouse object-level security via Entra groups | Lakehouse RLS requires workarounds (noted in vendor response); must be tested against all access patterns |
+| RBAC via Entra ID | Must Have | Native — all Fabric access authenticates via Entra | Standard; no gaps expected |
+| Audit logging + Azure integration | Must Have | Fabric Activity Tracking → Microsoft 365 UAL → Log Analytics | E5 licensing extends UAL retention to 1 year (vs. 90 days on E3); must configure export to a governed location |
+| APRA CPS 234, PCI-DSS, GDPR, Australian Privacy Act | Must Have | Risk-based implementation | See compliance analysis below |
+| Conditional Access + MFA | Must Have | Entra CA + MFA — explicitly committed | **Must target all five Fabric-dependent services**, not just Power BI Service (see note) |
+| Encryption at rest and in transit (MMK or CMK) | Must Have | MMK: default; CMK: workspace-level, F SKU | **Gap: CMK does NOT cover Spark temp storage** (shuffle data, spills, RDD caches). If "100% CMK coverage" is a hard requirement, Spark workloads cannot meet it. This must be disclosed to the client. |
+| Audit trail for all Fabric activities | Must Have | Fabric Activity Tracking — captures all workspace, item, and access events | Must be configured and exported; default location and retention must be defined |
+
+**CA multi-service dependency (critical implementation note):** CA policies must target all five Fabric-dependent services — **Power BI Service, Azure Data Explorer, Azure SQL Database, Azure Storage, Azure Cosmos DB** — not Power BI Service alone. Policies scoped to Power BI Service only will cause Dataflows and other Fabric features to break silently. If the client already has a CA policy for Power BI, it must be expanded.
+
+### Compliance Framework Analysis
+
+**APRA CPS 234**: Outcome-based standard for APRA-regulated entities. Requires controls proportionate to information asset classification — does not mandate Private Link specifically. Requires annual security testing, board-level accountability, and 72-hour APRA notification for material incidents. Whether network isolation is required depends on the risk assessment for classified information assets — a risk-based determination, not a prescriptive mandate.
+
+**PCI-DSS**: Has prescriptive network control requirements (Requirement 1: network security controls; Requirement 1.3: restrict inbound and outbound traffic to what is necessary). **PCI-DSS scope only applies to systems that store, process, or transmit cardholder data (card numbers, CVVs, expiry dates).** If no cardholder data flows through Fabric, PCI-DSS network requirements do not apply. **This is the single most important compliance question to resolve — it determines whether network-layer controls are contractually required.**
+
+**GDPR**: Requires appropriate technical and organisational measures for personal data. Encryption, access controls, audit logging, and breach notification processes satisfy the relevant obligations. Does not mandate network isolation.
+
+**Australian Privacy Act**: Outcome-based; same conclusion as GDPR. No network architecture mandate.
+
+### Implication for Network Architecture
+
+Private Link is not a contractual requirement. The baseline architecture commitment is CA + MFA, RBAC, encryption, and audit logging — all of which are achievable without Private Link.
+
+**Private Link (any form) is only required if:**
+1. The PCI-DSS assessment determines cardholder data flows through Fabric and network segmentation is required, OR
+2. The APRA CPS 234 risk assessment determines network isolation is a required control for classified information assets, OR
+3. The client's own internal security policy (beyond the RFP) requires it
+
+This shifts the default position: **CA + MFA + encryption + audit logging is the contractual baseline. Private Link is additive, scope-driven, and should not be introduced without a specific compliance justification.**
+
+---
+
 ## Open Questions
 
 | # | Question | Why It Matters | Status |
 |---|----------|----------------|--------|
 | 1 | Does the client have ExpressRoute or VPN Gateway to Azure? | Determines feasibility of private on-premises connectivity to Azure; affects OPDG and VNet gateway routing | Open |
-| 2 | What level of network isolation is required? | Drives the entire architecture — tenant PL vs. workspace PL vs. outbound controls only vs. nothing | Open — being assessed |
+| 2 | Does cardholder data (payment card numbers, CVVs) flow through Fabric? | Determines PCI-DSS scope — if yes, network-layer controls may be required; if no, CA + MFA satisfies the contractual baseline and Private Link is not required | **Critical — resolve first** |
+| 2a | What level of network isolation is required beyond the RFP baseline? | Private Link is not in the RFP; only required if PCI-DSS scope or APRA risk assessment drives it | Open — pending compliance assessment |
 | 3 | How is Amazon S3 connected? | VPN assumed but not built; OneLake shortcut over public internet may be the simplest viable path | Open — see Discovery Notes |
 | 4 | Are Genesys PureCloud APIs public-facing? | Assumed yes (SaaS); if outbound protection enabled, endpoints need allowlisting | Assumed yes |
 | 5 | ZScaler — does it bypass Fabric FQDNs or intercept? | Bypass config likely required; may be straightforward to add | Open — needs network team |
@@ -84,6 +129,8 @@ Adding Fabric FQDNs to ZScaler's bypass list is a standard configuration. The co
 - There is no native Azure-to-AWS PrivateLink option supported by Fabric
 
 **Key consideration for this client**: The OPDG is already required for Sybase ASE. If the OPDG cluster is installed in a network that can reach the S3 endpoint, the OPDG-backed shortcut may satisfy a "no public internet" requirement at no additional infrastructure cost. This is the preferred path if private connectivity to S3 is required.
+
+> **Prerequisite — workspace-level PL only**: The OPDG-backed S3 shortcut is only viable under the recommended workspace-level PL architecture (no tenant-level PL). Under tenant-level PL with Block Public Internet Access enabled, OPDG registration fails entirely — the gateway VM cannot reach Fabric's public endpoints to register. That failure would break both the Sybase ASE connection and the OPDG-backed S3 shortcut simultaneously. This is one of several reasons tenant-level PL + Block Public Internet Access has been ruled out for this client.
 
 > **Action**: Confirm with Cyber Security Policy whether "no public internet" applies to outbound Fabric connections. Confirm whether the OPDG machine will have network access to the S3 endpoint. If both are yes, OPDG-backed S3 shortcut is the recommended path.
 
@@ -444,21 +491,24 @@ Deployment Pipelines for DEV → UAT (neither environment has public access rest
 
 ### The Recommended Position to Defend
 
-**Workspace-level Private Link on PROD consumer workspaces (Gold, Semantic Model, Reporting) only, with Workspace IP Firewall on all other workspaces.** This is a defensible, professionally responsible recommendation because:
+**Position 1 (default — if no compliance driver for network isolation emerges):**
+
+**Conditional Access + MFA + named location (ZScaler egress IPs) + compliant device, with no Private Link.** This is the contractual baseline. It is what the RFP asked for, what the vendor committed to, and what E5 licensing already covers. It is a strong, modern, Zero Trust security posture. The steering argument is simple: "There is no Private Link requirement in the RFP. CA + MFA is what was contracted. If a compliance assessment subsequently identifies a network isolation requirement, we can add workspace-level PL to specific workspaces at that point."
+
+**Position 2 (if PCI-DSS or APRA risk assessment drives network isolation):**
+
+**Workspace-level Private Link on PROD consumer workspaces (Gold, Semantic Model, Reporting) only, with Workspace IP Firewall on all other workspaces.** This is a defensible, proportionate response to a specific compliance requirement because:
 
 1. It isolates the layer where sensitive data reaches the widest audience — the consumer layer
 2. It does not break OPDG, the Capacity Metrics App, Purview sensitivity labels, or Deployment Pipelines
 3. It scales manageably — 3–5 consumer workspaces across environments rather than 30–60
-4. It satisfies a "network isolation for sensitive data" policy requirement if one exists
-5. It can be extended later if requirements change — adding workspace PL to more workspaces is straightforward; removing tenant-level PL after it is in place is disruptive
-
-The client gets meaningful, demonstrable network isolation on the workspaces that matter most. The implementation remains manageable. The operational gaps are avoided.
+4. It can be extended later if requirements change; adding workspace PL to more workspaces is straightforward
 
 ### What to Confirm Before Finalising the Recommendation
 
-- [ ] Does a specific compliance mandate require network isolation, and which control?
+- [ ] **Does cardholder data flow through Fabric?** — determines PCI-DSS network control scope (most critical question)
+- [ ] **Does APRA risk assessment require network isolation for any classified data assets?**
 - [ ] Is Purview sensitivity labelling a hard requirement?
-- [ ] Is the Capacity Metrics App required in PROD? (Confirms workspace-level PL is viable and tenant-level PL is not)
+- [ ] Is the Capacity Metrics App required in PROD?
 - [ ] Are Deployment Pipelines planned for DEV → UAT → PROD promotion?
-- [ ] What does "no public internet" specifically mean — inbound to Fabric, outbound from Fabric, or both?
-- [ ] Confirm the Capacity Metrics App functions under workspace-level PL (requires testing)
+- [ ] Confirm the Capacity Metrics App functions under workspace-level PL (requires testing if Position 2 is adopted)
