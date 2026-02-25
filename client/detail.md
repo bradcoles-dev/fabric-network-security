@@ -67,25 +67,25 @@ Workspace-level Private Link is the right direction given the OPDG dependency (S
 ### 3. ZScaler — likely solvable but must be confirmed
 Adding Fabric FQDNs to ZScaler's bypass list is a standard configuration. The concern is not whether it's technically possible but whether the client's Cyber Security Operations team will approve it and how long the change process takes. Key FQDNs to bypass: `*.fabric.microsoft.com`, `*.analysis.windows.net`, `*.pbidedicated.windows.net`, `*.powerquery.microsoft.com`. Also need to confirm ZScaler egress IPs if workspace IP Firewall is being considered.
 
-### 4. Amazon S3 — depends on whether "no public internet" is a hard requirement
+### 4. Amazon S3 — private connectivity is possible via OPDG-backed shortcut
 
-[OneLake supports native shortcuts to Amazon S3](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts). The shortcut reads data in-place from S3 **over the public internet** — no VPN or Azure-to-AWS private connectivity is used.
+> **Source:** [Create shortcuts to on-premises data](https://learn.microsoft.com/en-us/fabric/onelake/create-on-premises-shortcut) — last updated 2026-02-20. This changes our earlier analysis.
 
-**If "no public internet" is not a hard requirement (or S3 is treated as an exception):**
-- S3 shortcut is the simplest path — no pipeline, no copying, no AWS-side infrastructure
-- S3 bucket policy provides access control on the AWS side
+[OneLake shortcuts to Amazon S3](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts) can be backed by an OPDG, routing the connection through the gateway machine rather than over the public internet. This applies to VPC-protected S3 buckets and S3-compatible storage behind firewalls. The OPDG machine must have direct network connectivity to the S3 endpoint (e.g., from an on-premises network with a route to AWS, or a VM in a VNet with VPN/peering to AWS).
+
+**If "no public internet" is not a hard requirement:**
+- Standard S3 shortcut (no gateway) is the simplest path — public internet, S3 bucket policy for access control
 - If [Outbound Access Protection](../docs/02-outbound/outbound-access-protection.md) is enabled, Amazon S3 must be allowlisted as an endpoint-level rule
 - If CMK is in scope: disable shortcut caching — cached data lands in OneLake without [CMK coverage](../docs/04-data-security/customer-managed-keys.md)
 
-**If "no public internet" is a hard requirement applying to all data paths:**
-- OneLake S3 shortcut is not compliant — it uses the public internet
-- Viable alternatives:
-  1. **Stage S3 to Azure Blob first** via an external process (e.g., AWS DataSync, AWS Lambda + SDK, or a third-party tool), then access Azure Blob from Fabric via private connectivity. This adds complexity and infrastructure outside Fabric.
-  2. **Accept S3 as a public exception** — argue that the connection is outbound from Fabric to a known endpoint (S3 bucket with policy), not inbound public access to Fabric. Depends on how the policy is written.
-  3. **Do not use S3** — if this source is not yet built, it may be worth questioning whether S3 is the right storage choice given the connectivity constraints.
-- There is no native Azure-to-AWS PrivateLink option supported by Fabric. Any private path would require complex Transit Gateway / VPN architecture that is disproportionate for a data ingestion use case.
+**If "no public internet" is a hard requirement:**
+- **OPDG-backed S3 shortcut** — if the OPDG machine (already needed for Sybase ASE) has network access to the S3 endpoint, the shortcut routes privately through the gateway. Entra service principal authentication is supported — no AWS access keys needed. Shortcut still reads in-place (no data copying).
+- **Stage S3 to Azure Blob first** — fallback if OPDG cannot reach S3; adds complexity and external infrastructure
+- There is no native Azure-to-AWS PrivateLink option supported by Fabric
 
-> **Action**: Confirm with Cyber Security Policy whether "no public internet" applies to outbound Fabric connections (not just inbound), and whether S3 as a public endpoint with bucket policy controls is acceptable.
+**Key consideration for this client**: The OPDG is already required for Sybase ASE. If the OPDG cluster is installed in a network that can reach the S3 endpoint, the OPDG-backed shortcut may satisfy a "no public internet" requirement at no additional infrastructure cost. This is the preferred path if private connectivity to S3 is required.
+
+> **Action**: Confirm with Cyber Security Policy whether "no public internet" applies to outbound Fabric connections. Confirm whether the OPDG machine will have network access to the S3 endpoint. If both are yes, OPDG-backed S3 shortcut is the recommended path.
 
 ### 5. Capacity Metrics App — confirmed significant gap
 If workspace-level Private Link is used (without tenant-level Block Public Internet Access), the Capacity Metrics App remains functional. This is another reason workspace-level PL is preferable — it preserves the app. The app only breaks under tenant-level PL with Block Public Internet Access enabled, which is not the recommended path here.

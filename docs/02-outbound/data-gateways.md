@@ -4,9 +4,10 @@
 > - [On-premises data gateway](https://learn.microsoft.com/en-us/power-bi/connect-data/service-gateway-onprem)
 > - [VNet data gateway](https://learn.microsoft.com/en-us/data-integration/vnet/overview)
 > - [Microsoft Fabric end-to-end security scenario](https://learn.microsoft.com/en-us/fabric/security/security-scenario)
+> - [Create shortcuts to on-premises data](https://learn.microsoft.com/en-us/fabric/onelake/create-on-premises-shortcut) — OPDG-backed OneLake shortcuts
 > - [Blog: Mission-Critical Data Integration — What's New in Fabric Data Factory](https://blog.fabric.microsoft.com/en-us/blog/mission-critical-data-integration-whats-new-in-fabric-data-factory/) — Oct 2, 2025
 > - [Blog: Fabric October 2025 Feature Summary](https://blog.fabric.microsoft.com/en-us/blog/fabric-october-2025feature-summary) — Oct 29, 2025
-> Last reviewed: 2026-02-24
+> Last reviewed: 2026-02-25
 
 ## Feature Timeline
 
@@ -66,6 +67,28 @@ The VNet data gateway allows Fabric to inject compute containers into your Azure
 | Pipelines / Copy Jobs connecting to Azure data sources in VNet | VNet Data Gateway (GA Oct 2025) |
 | Tenant Private Link enabled, need to connect to on-premises | VNet Data Gateway (OPDG not supported) |
 | Spark notebooks connecting to Azure data sources | Managed Private Endpoints (not gateway) |
+| Amazon S3 / S3-compatible / GCS behind VPC or firewall (OneLake shortcut) | On-Premises Data Gateway (OPDG-backed shortcut) |
+
+## OPDG-Backed OneLake Shortcuts
+
+> **Source:** [Create shortcuts to on-premises data](https://learn.microsoft.com/en-us/fabric/onelake/create-on-premises-shortcut) — last updated 2026-02-20
+
+OPDG can be used to back OneLake shortcuts to cloud storage that is behind a firewall, VPC, or private network. Supported shortcut types:
+
+- Amazon S3 (including VPC-protected buckets)
+- S3-compatible storage (including on-premises S3-compatible endpoints)
+- Google Cloud Storage (behind firewall or VPC)
+
+**How it works**: The OPDG is installed on a Windows machine that has direct network access to the storage endpoint. When creating the shortcut in Fabric, the user selects the OPDG from a dropdown. OneLake reads data in-place from the storage via the gateway — no data is copied.
+
+**Key points:**
+- The OPDG machine must have direct network connectivity to the storage endpoint (via VPN, ExpressRoute, or on-premises network)
+- Entra service principal authentication is supported for S3 via OPDG — eliminates the need for AWS access keys
+- Shortcut caching is available to reduce cross-cloud egress costs; disable caching if CMK compliance requires all data in OneLake to be customer-key-encrypted
+- Works in any Fabric-enabled workspace
+- This is specifically for **shortcut** access (in-place reads) — not for Pipeline copy activity ingestion
+
+**Important distinction from Pipeline ingestion**: This feature provides private network access for OneLake *shortcut* reads. It does not apply to Data Factory Pipeline copy activities sourcing from S3 — those would still use direct connectivity or a different gateway mechanism.
 
 ## Limitations and Considerations
 

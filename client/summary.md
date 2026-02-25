@@ -29,8 +29,8 @@ The app is [documented as incompatible with tenant-level Private Link](../docs/0
 ### 4. Purview sensitivity labels — unconfirmed with workspace-level PL
 [MIP sensitivity labels are confirmed broken with tenant-level PL](../docs/01-inbound/private-links-tenant.md). Impact of workspace-level PL is **undocumented**. If labelling is mandatory, this needs a proof-of-concept test before architecture is locked. Purview scanning of restricted workspaces is also unconfirmed.
 
-### 5. Amazon S3 has no private connectivity path from Fabric
-OneLake S3 shortcuts use the public internet. If "no public internet" is a hard policy requirement covering all Fabric connections — not just inbound — S3 data must be staged to Azure Blob first via an external process. **Requires policy clarification from Cyber Security Policy.**
+### 5. Amazon S3 — private connectivity possible via OPDG-backed shortcut
+[OneLake shortcuts to S3](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts) can be backed by an OPDG, routing privately through the gateway rather than over the public internet — provided the OPDG machine has network access to the S3 endpoint ([MS docs, updated 2026-02-20](https://learn.microsoft.com/en-us/fabric/onelake/create-on-premises-shortcut)). Since OPDG is already required for Sybase ASE, this may add no additional infrastructure. If the OPDG cannot reach S3, staging to Azure Blob first is the fallback. **Requires confirmation of OPDG network topology and policy scope from Cyber Security Policy.**
 
 ### 6. Deployment Pipelines incompatible with restricted workspaces
 [Workspaces with public access restricted cannot use Fabric Deployment Pipelines](../docs/01-inbound/private-links-workspace.md) for DEV → UAT → PROD promotion. **[Git-based CI/CD](https://learn.microsoft.com/en-us/fabric/cicd/git-integration/intro-to-git-integration) (Azure DevOps or GitHub) is required for any restricted workspace.** This is the recommended enterprise pattern regardless — but needs to be agreed with the Head of Data early, not discovered during build.
