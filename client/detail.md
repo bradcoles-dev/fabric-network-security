@@ -7,7 +7,7 @@
 |--------|------|-------------------|
 | MS SQL Server | On-premises | Standard; OPDG or VNet gateway |
 | Sybase ASE | On-premises | ODBC driver required; OPDG only |
-| Azure Blob Storage | Cloud (Azure) | TWA or MPE |
+| Azure Blob Storage | Cloud (Azure) | [TWA](../docs/02-outbound/trusted-workspace-access.md) or MPE |
 | Amazon S3 | Cloud (AWS) | VPN assumed; not yet built |
 | Genesys PureCloud | SaaS/Public API | Public endpoints |
 
@@ -59,7 +59,7 @@ Three workspaces: **DEV**, **UAT**, **PROD**
 Responses and analysis on specific points raised during discovery.
 
 ### 1. Separate F SKU per environment confirmed
-DEV, UAT, and PROD each have their own F SKU capacity. This is the recommended model — it enables independent capacity management, Private Link configuration per workspace, and separate Capacity Metrics App instances per environment. SKU requirement for all security features is met.
+DEV, UAT, and PROD each have their own F SKU capacity. This is the recommended model — it enables independent capacity management, Private Link configuration per workspace, and separate Capacity Metrics App instances per environment. SKU requirement for all security features is met. (See [feature availability](../docs/00-overview/feature-availability.md).)
 
 ### 2. Tenant-level vs. workspace-level Private Link
 Workspace-level Private Link is the right direction given the OPDG dependency (Sybase ASE). Tenant-level with Block Public Internet Access would break OPDG registration entirely. Workspace-level keeps the public internet accessible for OPDG while isolating specific workspaces. This aligns with Microsoft's own recommendation for environments where OPDG must coexist with Private Link.
@@ -69,13 +69,13 @@ Adding Fabric FQDNs to ZScaler's bypass list is a standard configuration. The co
 
 ### 4. Amazon S3 — depends on whether "no public internet" is a hard requirement
 
-OneLake supports native shortcuts to Amazon S3. The shortcut reads data in-place from S3 **over the public internet** — no VPN or Azure-to-AWS private connectivity is used.
+[OneLake supports native shortcuts to Amazon S3](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts). The shortcut reads data in-place from S3 **over the public internet** — no VPN or Azure-to-AWS private connectivity is used.
 
 **If "no public internet" is not a hard requirement (or S3 is treated as an exception):**
 - S3 shortcut is the simplest path — no pipeline, no copying, no AWS-side infrastructure
 - S3 bucket policy provides access control on the AWS side
-- If Outbound Access Protection is enabled, Amazon S3 must be allowlisted as an endpoint-level rule
-- If CMK is in scope: disable shortcut caching — cached data lands in OneLake without CMK coverage
+- If [Outbound Access Protection](../docs/02-outbound/outbound-access-protection.md) is enabled, Amazon S3 must be allowlisted as an endpoint-level rule
+- If CMK is in scope: disable shortcut caching — cached data lands in OneLake without [CMK coverage](../docs/04-data-security/customer-managed-keys.md)
 
 **If "no public internet" is a hard requirement applying to all data paths:**
 - OneLake S3 shortcut is not compliant — it uses the public internet
@@ -91,10 +91,10 @@ OneLake supports native shortcuts to Amazon S3. The shortcut reads data in-place
 If workspace-level Private Link is used (without tenant-level Block Public Internet Access), the Capacity Metrics App remains functional. This is another reason workspace-level PL is preferable — it preserves the app. The app only breaks under tenant-level PL with Block Public Internet Access enabled, which is not the recommended path here.
 
 ### 6. Azure SQL control DB — Pipelines only, not Notebooks
-Connectivity is simpler than initially assessed. Only VNet Data Gateway is needed (for Pipelines). No Managed Private Endpoint required. If the DB is provisioned as publicly accessible with firewall rules allowing the VNet Data Gateway's outbound IPs, even the VNet gateway may not be needed. Decision can be deferred until the DB is provisioned and its network configuration is known.
+Connectivity is simpler than initially assessed. Only [VNet Data Gateway](../docs/02-outbound/data-gateways.md) is needed (for Pipelines). No [Managed Private Endpoint](../docs/02-outbound/managed-private-endpoints.md) required. If the DB is provisioned as publicly accessible with firewall rules allowing the VNet Data Gateway's outbound IPs, even the VNet gateway may not be needed. Decision can be deferred until the DB is provisioned and its network configuration is known.
 
 ### 7. Workspace-level Private Link at scale (10–20 workspaces)
-The setup overhead per workspace is real: private link service (auto-created), private endpoint in customer VNet, DNS entry. For 10–20 workspaces × 3 environments = 30–60 setups minimum.
+The setup overhead per workspace is real: [private link service (auto-created)](../docs/01-inbound/private-links-workspace.md), private endpoint in customer VNet, DNS entry. For 10–20 workspaces × 3 environments = 30–60 setups minimum.
 
 **Tiered approach worth considering:**
 - **Tier 1 (highest sensitivity — e.g., Gold, PROD reporting)**: Workspace-level Private Link + public access restricted
@@ -104,7 +104,7 @@ The setup overhead per workspace is real: private link service (auto-created), p
 This avoids applying the most expensive isolation model universally. The REST API can automate workspace PL setup where it is applied, reducing manual overhead. **Recommend raising the tiered approach with Head of Cyber Security Policy** — isolation requirements may not be uniform across all workspaces.
 
 ### 8. Semantic model creation issue (reported in community)
-The community report about not being able to create semantic models with Private Link most likely refers to the **default semantic model** problem: when a Lakehouse, Warehouse, or Mirrored Database is created in a workspace, Fabric automatically creates a default semantic model. This default semantic model does not support workspace-level Private Link, which blocks the ability to restrict public access for that workspace.
+The community report about not being able to create semantic models with Private Link most likely refers to the **default semantic model** problem: when a Lakehouse, Warehouse, or Mirrored Database is created in a workspace, Fabric automatically creates a default semantic model. [This default semantic model does not support workspace-level Private Link](../docs/01-inbound/private-links-workspace.md), which blocks the ability to restrict public access for that workspace.
 
 **Workaround**: Configure workspace public access restriction *before* creating any Lakehouse, Warehouse, or Mirrored Database. Items created after the restriction is in place generate compatible default semantic models. This must be built into the workspace provisioning runbook — it cannot be retrofitted.
 
@@ -118,10 +118,10 @@ Purview usage needs to be clarified. Two distinct use cases with different impac
 
 **Data catalog / governance (lineage, classification, scanning):**
 - Purview scanning Fabric data requires access to Fabric's APIs. If workspace-level PL with public access restricted is enabled, Purview's scanning service needs a path to the workspace — either via a private endpoint or via the Managed Private Endpoint mechanism. This is not well-documented and needs testing.
-- OneLake Catalog Govern tab is unavailable when Private Link is activated.
+- [OneLake Catalog Govern tab is unavailable when Private Link is activated](../docs/01-inbound/private-links-workspace.md).
 
 **Sensitivity labels (Microsoft Information Protection / MIP):**
-- Sensitivity labels do **not** work when tenant-level Private Link is enabled. The Sensitivity button is greyed out in Power BI Desktop.
+- [Sensitivity labels do **not** work when tenant-level Private Link is enabled. The Sensitivity button is greyed out in Power BI Desktop.](../docs/01-inbound/private-links-tenant.md)
 - Workspace-level PL does not have this limitation documented — but it needs to be confirmed.
 - If sensitivity labelling is mandatory, tenant-level Private Link is not viable.
 
@@ -134,9 +134,9 @@ Noted above. Enables independent security configuration per environment and meet
 
 Sybase ASE requires OPDG with an ODBC driver installed on the gateway machine. There is no Fabric-native private endpoint path for Sybase.
 
-- **Tenant-level PL + Block Public Internet Access**: OPDG registration fails. Hard blocker.
-- **Tenant-level PL (without Block Public Internet Access)**: OPDG *may* work per MS employee guidance (Oct 2025), but is officially unsupported.
-- **Workspace-level PL**: OPDG is not affected — public internet access remains available for non-restricted workspaces. This is Microsoft's stated recommendation when OPDG must coexist with Private Link.
+- **[Tenant-level PL + Block Public Internet Access](../docs/01-inbound/private-links-tenant.md)**: [OPDG registration fails](../docs/02-outbound/data-gateways.md). Hard blocker.
+- **Tenant-level PL (without Block Public Internet Access)**: OPDG *may* work per MS employee guidance (r/MicrosoftFabric community finding, Oct 2025), but is officially unsupported.
+- **Workspace-level PL**: OPDG is not affected — public internet access remains available for non-restricted workspaces. This is [Microsoft's stated recommendation](../docs/02-outbound/data-gateways.md) when OPDG must coexist with Private Link.
 
 **Implication**: If any form of Private Link is required, workspace-level is strongly preferred over tenant-level to preserve OPDG functionality.
 
@@ -160,19 +160,19 @@ If S3 is accessed via a VPN (e.g., Azure-to-AWS VPN or on-premises-to-AWS VPN), 
 
 ### 4. Fabric Capacity Metrics App Does Not Support Private Link
 
-If tenant-level Private Link with Block Public Internet Access is enabled, the Capacity Metrics App stops working. If the client requires this app for capacity management (likely for PROD), it is a known gap that has no workaround other than not enabling Block Public Internet Access.
+If [tenant-level Private Link](../docs/01-inbound/private-links-tenant.md) with Block Public Internet Access is enabled, the Capacity Metrics App stops working. If the client requires this app for capacity management (likely for PROD), it is a known gap that has no workaround other than not enabling Block Public Internet Access.
 
 ### 5. Azure SQL Control DB — Connection from Both Pipelines and Notebooks
 
 The control DB will be accessed by both Fabric Data Pipelines (orchestration) and potentially Spark Notebooks (transformation logic). These workloads use different connectivity mechanisms:
-- **Pipelines**: VNet Data Gateway (if DB is network-restricted) — GA Oct 2025
-- **Notebooks**: Managed Private Endpoint to Azure SQL
+- **Pipelines**: [VNet Data Gateway](../docs/02-outbound/data-gateways.md) (if DB is network-restricted) — GA Oct 2025
+- **Notebooks**: [Managed Private Endpoint to Azure SQL](../docs/02-outbound/managed-private-endpoints.md)
 
 If the DB is network-restricted, both mechanisms need to be in place. If provisioned as public (with firewall rules), this is simpler but reduces isolation.
 
 ### 6. DEV/UAT/PROD as Workspaces — Workspace-Level PL Operational Overhead
 
-With workspace-level Private Link, each workspace gets its own private link service and workspace-specific FQDN. For three environments this means:
+With [workspace-level Private Link](../docs/01-inbound/private-links-workspace.md), each workspace gets its own private link service and workspace-specific FQDN. For three environments this means:
 - 3 private link services
 - 3+ private endpoints (one per environment per VNet that needs access)
 - 3 sets of DNS entries
@@ -211,8 +211,8 @@ Every connectivity choice downstream depends on this. The options are meaningful
 | Option | OPDG Works | Capacity Metrics App | MIP Sensitivity Labels | Purview Scanning | Dev Experience | Operational Overhead |
 |--------|-----------|----------------------|------------------------|-----------------|----------------|----------------------|
 | No isolation | ✓ | ✓ | ✓ | ✓ | Simple — public internet | Low |
-| Workspace IP Firewall only | ✓ | ✓ | ✓ | ✓ | ZScaler egress IPs must be allowed; traffic still over public internet | Low |
-| Workspace-level Private Link | ✓ | ✓ (needs confirmation — see note) | ✓ (unconfirmed) | Unconfirmed | Workspace-specific FQDNs (see below); DNS config via VPN required | Medium |
+| [Workspace IP Firewall](../docs/01-inbound/ip-firewall.md) only | ✓ | ✓ | ✓ | ✓ | ZScaler egress IPs must be allowed; traffic still over public internet | Low |
+| [Workspace-level Private Link](../docs/01-inbound/private-links-workspace.md) | ✓ | ✓ (needs confirmation — see note) | ✓ (unconfirmed) | Unconfirmed | Workspace-specific FQDNs (see below); DNS config via VPN required | Medium |
 | Tenant-level PL (no block) | Possibly | ✓ | ✓ | ✓ | Tenant-specific FQDN; DNS config via VPN required | Medium |
 | Tenant-level PL + Block Public | ✗ | ✗ | ✗ | Likely broken | Fully isolated; no public internet for any user | High |
 
@@ -220,7 +220,7 @@ Every connectivity choice downstream depends on this. The options are meaningful
 
 **No isolation**: Fabric is accessed over the public internet. Authentication and authorisation (Entra ID, workspace roles) are the only controls. Appropriate for non-sensitive environments (DEV).
 
-**Workspace IP Firewall only** *(FQDN = Fully Qualified Domain Name — the specific domain name used to address a resource)*: Restricts inbound access to Fabric based on the source IP address of the request. Traffic still travels over the public internet, but only from approved IP ranges. If ZScaler is in the path, ZScaler's egress IPs are what Fabric sees — not the user's corporate IP. Rules must be based on ZScaler egress IPs. Does not provide network-layer isolation (traffic is still public internet). Simple to configure, no DNS changes.
+**[Workspace IP Firewall](../docs/01-inbound/ip-firewall.md) only** *(FQDN = Fully Qualified Domain Name — the specific domain name used to address a resource)*: Restricts inbound access to Fabric based on the source IP address of the request. Traffic still travels over the public internet, but only from approved IP ranges. If ZScaler is in the path, ZScaler's egress IPs are what Fabric sees — not the user's corporate IP. Rules must be based on ZScaler egress IPs. Does not provide network-layer isolation (traffic is still public internet). Simple to configure, no DNS changes.
 
 > **Capacity Metrics App note**: The documented incompatibility with the Capacity Metrics App is specific to **tenant-level** Private Link. With workspace-level PL (no tenant-level PL), public Fabric endpoints remain accessible for the rest of the tenant — the Capacity Metrics App should therefore still function. This needs to be confirmed by testing before it is relied upon in architecture decisions.
 
@@ -234,11 +234,11 @@ This decision needs to come from Cyber Security Policy, not be inferred from gen
 
 ### 4. Fabric Capacity Metrics App Is Broken Under Full Private Link Isolation
 
-This is a Microsoft-documented limitation with no workaround. If the client enables tenant-level Private Link with Block Public Internet Access — the strictest isolation option — the Capacity Metrics App stops working entirely. Operations teams depend on this for capacity management in PROD. The client needs to consciously accept this trade-off or choose a less restrictive isolation model.
+This is a [Microsoft-documented limitation](../docs/01-inbound/private-links-tenant.md) with no workaround. If the client enables tenant-level Private Link with Block Public Internet Access — the strictest isolation option — the Capacity Metrics App stops working entirely. Operations teams depend on this for capacity management in PROD. The client needs to consciously accept this trade-off or choose a less restrictive isolation model.
 
 ### 5. Microsoft Purview Information Protection Does Not Support Private Link
 
-If the client has a data sensitivity labelling requirement (common in environments with a Head of Cyber Security Policy), they should know that MIP/sensitivity labels do not work in a Private Link-enabled tenant. The Sensitivity button is greyed out in Power BI Desktop on a private-linked tenant. If sensitivity labels are mandatory, this is a blocker for full Private Link isolation.
+If the client has a data sensitivity labelling requirement (common in environments with a Head of Cyber Security Policy), they should know that [MIP/sensitivity labels do not work in a Private Link-enabled tenant](../docs/01-inbound/private-links-tenant.md). The Sensitivity button is greyed out in Power BI Desktop on a private-linked tenant. If sensitivity labels are mandatory, this is a blocker for full Private Link isolation.
 
 ### 6. Amazon S3 Has No Supported Private Connectivity Path from Fabric
 
@@ -246,11 +246,11 @@ Fabric cannot route through a VPN to reach S3. This source needs its connectivit
 
 ### 7. Default Semantic Models Block Workspace Private Link Restriction — Deployment Sequencing Matters
 
-If workspace-level Private Link is used and public access needs to be restricted, the workspace must be configured with that restriction **before** any Lakehouse, Warehouse, or Mirrored Database is created. Creating these items first generates default semantic models that are incompatible with the restriction, blocking it from being enabled. This is a deployment sequencing requirement that must be built into the provisioning runbook.
+If [workspace-level Private Link](../docs/01-inbound/private-links-workspace.md) is used and public access needs to be restricted, the workspace must be configured with that restriction **before** any Lakehouse, Warehouse, or Mirrored Database is created. Creating these items first generates default semantic models that are incompatible with the restriction, blocking it from being enabled. This is a deployment sequencing requirement that must be built into the provisioning runbook.
 
 ### 8. SKU Selection — Most Security Features Require F SKU
 
-Workspace-level Private Link, Trusted Workspace Access, Customer-Managed Keys, and Outbound Access Protection all require F SKU. Trial capacities and P SKU do not support these features. The client must be on F SKU for the security architecture to work. Confirm this with procurement / licensing before design.
+[Workspace-level Private Link](../docs/01-inbound/private-links-workspace.md), [Trusted Workspace Access](../docs/02-outbound/trusted-workspace-access.md), [Customer-Managed Keys](../docs/04-data-security/customer-managed-keys.md), and [Outbound Access Protection](../docs/02-outbound/outbound-access-protection.md) all require F SKU. Trial capacities and P SKU do not support these features. The client must be on F SKU for the security architecture to work. Confirm this with procurement / licensing before design.
 
 ---
 
@@ -299,9 +299,9 @@ Owns ZScaler configuration, security monitoring, incident response, and operatio
 - What are the ZScaler egress IP addresses? These are what Fabric will see as source IPs. If workspace IP Firewall is used, rules must be based on ZScaler egress IPs, not corporate network IPs.
 - Is there a SIEM in place (e.g., Microsoft Sentinel, Splunk)? Microsoft Fabric audit logs are available via the Microsoft 365 Unified Audit Log and can be forwarded to SIEM.
 - Is there a vulnerability management process for gateway infrastructure? OPDG servers require patching and monitoring. Who will own this?
-- What is the change management process for Azure Private Link approvals? When Fabric creates a managed private endpoint to an Azure resource, the Azure resource owner must approve it in the Azure Portal. Operations needs a workflow for this.
+- What is the change management process for Azure Private Link approvals? When Fabric creates a [managed private endpoint](../docs/02-outbound/managed-private-endpoints.md) to an Azure resource, the Azure resource owner must approve it in the Azure Portal. Operations needs a workflow for this.
 - Is there a requirement for network traffic monitoring (NSG flow logs, Azure Monitor)? If private endpoints are used, traffic patterns change — flow logs should be reviewed.
-- Conditional Access: Are there existing CA policies for workload identities or service principals? A policy that applies to all service principals will break Trusted Workspace Access unless Fabric workspace identities are explicitly excluded.
+- [Conditional Access](../docs/01-inbound/conditional-access.md): Are there existing CA policies for workload identities or service principals? A policy that applies to all service principals will break [Trusted Workspace Access](../docs/02-outbound/trusted-workspace-access.md) unless Fabric workspace identities are explicitly excluded.
 
 ---
 
@@ -313,9 +313,9 @@ Owns the data strategy, data governance, business unit access, and data product 
 - What is the data sensitivity classification across layers? Is all data equally sensitive, or are Gold/reporting layer data products less restricted? This affects whether every workspace needs isolation or just selected ones.
 - Who are the business unit consumers, and what is their expected access method? (Browser only? Power BI Desktop? Direct SQL/TDS connections to Warehouse/Lakehouse SQL endpoint?) Each method has different Private Link implications.
 - Is Microsoft Purview in scope for data governance and cataloguing? Purview integration with Fabric has its own network considerations.
-- Is there a requirement for external data sharing (sharing Fabric data with external organisations or partners)? Outbound Access Protection is incompatible with Fabric external data sharing (cross-tenant). This is a mutually exclusive choice.
-- Are Deployment Pipelines planned for CI/CD between DEV/UAT/PROD? Workspaces assigned to a deployment pipeline cannot have public inbound access restricted via workspace-level Private Link. These are mutually exclusive — you cannot use both simultaneously.
-- What are the SLAs for data availability? Spark cold start (3–5 minutes after managed VNet provisioning) and Private Link propagation delays affect pipeline schedules.
+- Is there a requirement for external data sharing (sharing Fabric data with external organisations or partners)? [Outbound Access Protection is incompatible with Fabric external data sharing (cross-tenant)](../docs/02-outbound/outbound-access-protection.md). This is a mutually exclusive choice.
+- Are [Deployment Pipelines](https://learn.microsoft.com/en-us/fabric/cicd/deployment-pipelines/intro-to-deployment-pipelines) planned for CI/CD between DEV/UAT/PROD? [Workspaces assigned to a deployment pipeline cannot have public inbound access restricted via workspace-level Private Link](../docs/01-inbound/private-links-workspace.md). These are mutually exclusive — you cannot use both simultaneously.
+- What are the SLAs for data availability? [Spark cold start (3–5 minutes after managed VNet provisioning)](../docs/02-outbound/managed-vnets.md) and Private Link propagation delays affect pipeline schedules.
 - Is Fabric licensing confirmed as F SKU? Most security features (Private Link, TWA, CMK, Outbound Protection) require F SKU. Trial and P SKU are not supported.
 - Will the Fabric Capacity Metrics App be required for capacity management in production? If yes, full Private Link isolation with Block Public Internet Access is not compatible.
 
@@ -331,7 +331,7 @@ Owns the data strategy, data governance, business unit access, and data product 
 
 **Azure Platform / Cloud Team**
 - Private endpoint provisioning for Azure resources (Azure SQL, Azure Blob, Key Vault)
-- Managed Private Endpoint approval workflow (approvals happen in Azure Portal)
+- [Managed Private Endpoint](../docs/02-outbound/managed-private-endpoints.md) approval workflow (approvals happen in Azure Portal)
 - Azure Key Vault provisioning (for CMK if required)
 - Azure subscription and resource group structure for Fabric support infrastructure
 
@@ -362,7 +362,7 @@ Owns the data strategy, data governance, business unit access, and data product 
 - **Amazon S3** — if public internet is acceptable: OneLake shortcut is the simplest path. If "no public internet" is a hard requirement: S3 must be staged to Azure Blob first via an external process. Confirm policy scope with Cyber Security Policy.
 - **OPDG** — required for Sybase ASE (ODBC driver, no alternative). For MS SQL Server: VNet Data Gateway is viable if VPN/ExpressRoute connects the Azure VNet to on-premises; otherwise OPDG is also needed for SQL Server. Confirm once on-premises connectivity topology is known.
 - **Azure SQL control DB** — VNet Data Gateway for Pipeline connectivity only (Notebooks do not interact with control DB). Network configuration TBD at provisioning time.
-- **Managed Private Endpoints** — for Spark Notebook connections to Azure Blob Storage if required. Note: Notebooks are expected to access Fabric Lakehouses only — if that remains true, no MPEs are needed for Notebooks.
+- **[Managed Private Endpoints](../docs/02-outbound/managed-private-endpoints.md)** — for Spark Notebook connections to Azure Blob Storage if required. Note: Notebooks are expected to access Fabric Lakehouses only — if that remains true, no MPEs are needed for Notebooks.
 - **Genesys PureCloud** — public endpoint; allowlist in Outbound Access Protection if that is enabled.
 - **ZScaler bypass rules** for Fabric FQDNs must be in place before any Private Link testing begins.
 - **Workspace provisioning runbook must enforce**: restrict public access *before* creating Lakehouse/Warehouse items to avoid default semantic model incompatibility.
@@ -398,7 +398,7 @@ The question to put to Cyber Security Policy: **"Which specific control in our c
 - Full tenant Private Link with Block Public Internet Access means OPDG registration fails — the Sybase ASE ingestion pipeline does not run on day one. That is an operational incident, not a security win.
 - The Capacity Metrics App stops working under full tenant PL. Capacity management and cost control in production depend on it. Ask who owns the risk of having no capacity visibility in PROD.
 - ZScaler bypass rules must be in place before Private Link works for any user. The change management process for that config change is a dependency on the entire project timeline — surface it as a project risk early.
-- Managed Private Endpoint approval requests appear in the Azure Portal. Operations needs a defined workflow to approve or reject them. Without one, ingestion pipelines stall waiting for approvals. This is an operational overhead that does not exist without Private Link.
+- [Managed Private Endpoint approval requests appear in the Azure Portal](../docs/02-outbound/managed-private-endpoints.md). Operations needs a defined workflow to approve or reject them. Without one, ingestion pipelines stall waiting for approvals. This is an operational overhead that does not exist without Private Link.
 
 **With Head of Architecture:**
 - Workspace-level Private Link across 10–20 workspaces × 3 environments means 30–60+ private endpoints, DNS entries, and private link services to provision and maintain. This is ongoing operational complexity that lives in the Azure platform team, not in the Fabric team. Confirm that the Azure platform team has capacity to own this.
@@ -406,9 +406,9 @@ The question to put to Cyber Security Policy: **"Which specific control in our c
 - If there is no VPN/ExpressRoute from on-premises to Azure, VNet Data Gateway cannot reach on-premises SQL Server — meaning OPDG is required regardless of other choices. Confirm the connectivity topology before any Private Link discussion.
 
 **With Head of Data:**
-- Deployment Pipelines (CI/CD between DEV/UAT/PROD) cannot be used on workspaces with restricted public access. If the team plans to use Deployment Pipelines for release management, workspace-level PL with public access restriction on those workspaces is incompatible. This is a development workflow decision, not just a security one. See deployment strategy note below.
+- [Deployment Pipelines](https://learn.microsoft.com/en-us/fabric/cicd/deployment-pipelines/intro-to-deployment-pipelines) (CI/CD between DEV/UAT/PROD) cannot be used on workspaces with restricted public access. If the team plans to use Deployment Pipelines for release management, workspace-level PL with public access restriction on those workspaces is incompatible. This is a development workflow decision, not just a security one. See deployment strategy note below.
 - Business unit users accessing Silver and Gold lakehouses via browser or Power BI Desktop need their DNS to resolve workspace-specific FQDNs correctly through VPN. Any user who is not on the VPN or whose ZScaler config is not correct will be locked out. Confirm the business unit access model before restricting public access on consumer workspaces.
-- Spark cold start increases from ~30 seconds to 3–5 minutes once a managed VNet is provisioned (triggered by Private Link). This affects pipeline schedule design and SLA commitments.
+- [Spark cold start increases from ~30 seconds to 3–5 minutes once a managed VNet is provisioned](../docs/02-outbound/managed-vnets.md) (triggered by Private Link). This affects pipeline schedule design and SLA commitments.
 
 ### Deployment Strategy: How to Deploy to PROD with Workspace-Level PL
 
@@ -423,7 +423,7 @@ Configure the private link service on PROD workspaces but do not block public ac
 - Security posture: defensible if policy requires "private link in place" rather than "public access blocked"
 - Simplest to implement; weakest of the three
 
-**Option 2 — Git-based CI/CD (Azure DevOps or GitHub)**
+**Option 2 — [Git-based CI/CD](https://learn.microsoft.com/en-us/fabric/cicd/git-integration/intro-to-git-integration) (Azure DevOps or GitHub)**
 
 Each Fabric workspace connects to a branch in a Git repository. Deployment to PROD happens by merging to the PROD branch; Fabric syncs automatically. No Deployment Pipeline needed.
 
