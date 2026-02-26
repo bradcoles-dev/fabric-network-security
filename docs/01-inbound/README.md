@@ -90,6 +90,81 @@ This is where it gets complex. The table below shows effective access behavior b
 
 ---
 
+## Private Link Limitations Comparison
+
+The table below maps every documented limitation across both Private Link types. **"Not documented"** means there is no official documentation confirming the feature works or is broken — do not assume support. **"Not applicable"** means the concept does not apply at that scope.
+
+| Feature / Area | Tenant-Level PL | Workspace-Level PL |
+|----------------|----------------|--------------------|
+| **Setup** | | |
+| SKU requirement | Any Fabric SKU | F SKU only — not P SKU, not Trial |
+| Fabric portal access when public blocked | Accessible via tenant PL network | Not accessible — workspace PL covers API only; portal requires tenant-level PL |
+| Admin APIs | Governed by tenant settings | Remain publicly accessible even with workspace restriction |
+| Configure inbound + outbound via portal | Not supported simultaneously — must use REST API | Not supported simultaneously — must use REST API |
+| Capacity limit | 450 capacities per tenant | 500 workspace private link services per tenant; 100 private endpoints per workspace |
+| New capacities | Up to 24 hours to reflect in private DNS zone | Not applicable |
+| Trial capacity | Not supported | Not supported |
+| Tenant migration | Blocked while enabled | Not applicable |
+| Workspace deletion | Not documented | Workspaces with active private link services cannot be deleted |
+| SQL Database | Supported | Not yet supported — Q1 2026 roadmap |
+| **Data Gateway** | | |
+| On-premises data gateway (OPDG) | Fails when Block Public Internet Access is enabled; may work without it (officially unsupported) | Not affected — documented as Microsoft's recommended model for OPDG + PL coexistence |
+| VNet Data Gateway download diagnostics | Does not work | Not documented |
+| **Deployment** | | |
+| Deployment Pipelines | Not documented | Cannot be used with restricted workspaces |
+| Default Semantic Models | Not documented | Existing lakehouses/warehouses/mirrored databases generate incompatible default semantic models — must restrict workspace before creating these items |
+| **Capacity Metrics App** | Does not support Private Link | Not documented |
+| **Microsoft Purview / MIP** | | |
+| Sensitivity labels (MIP) | Not supported — Sensitivity button grayed out in Power BI Desktop | Not documented |
+| OneLake Catalog — Govern tab | Not available | Not available |
+| **OneLake** | | |
+| OneLake regional endpoints (direct calls) | Do not work via private link | Not documented |
+| OneLake Security | Not documented | Not currently supported |
+| Shortcut transforms | Not documented | Not supported in restricted workspaces |
+| **Spark / Data Engineering** | | |
+| Spark starter pools | Disabled once managed VNet is provisioned (triggered by tenant PL setting) | Not documented — managed VNet trigger is documented only for tenant PL setting |
+| Spark cold start | Increases to 3–5 minutes after managed VNet provisioned | Not documented |
+| Workspace migration across regions | Not supported after managed VNet is allocated | Not documented |
+| Spark friendly names | Not documented | Do not work with workspace-level PL |
+| **Bandwidth / Latency** | Static assets (CSS, JS) route through private endpoint — increased latency for geographically distant users | Not documented |
+| **Monitoring** | | |
+| Workspace monitoring | Not documented | Not currently supported |
+| Monitoring hub Level 2 deeplinks | Not documented | May not work — navigate from Level 1 page instead |
+| Power BI modern usage metrics | Partial only — Report Open events; no Page Views or performance data | Not documented |
+| **Power BI** | | |
+| Publish to Web | Not supported | Not documented |
+| Email subscriptions | Not supported when Block Public Internet Access enabled | Not documented |
+| Export report to PDF / PowerPoint | Not supported | Not documented |
+| Copilot | Not supported | Not documented |
+| Visual query in Warehouse | Does not work when Block Public Internet Access enabled | Not documented |
+| Direct Lake (datamart/dataflow source, internet-blocked) | Connection fails | Not documented |
+| **Item Sharing** | | |
+| Shared item links | Not documented | Stop working for restricted workspaces |
+| Power Platform Dataflow Connector between workspace dataflows | Not documented | Cannot connect when public access is denied |
+| **Copy Activity** | | |
+| Workspace staging (Warehouse, Snowflake, Teradata) | Not documented | Not supported — use external staging |
+| Copy to Eventhouse | Not documented | Not supported |
+| **Eventstream** | | |
+| Custom Endpoint source/destination | Not supported | Not supported |
+| Eventhouse as destination (direct ingestion) | Not supported | Not supported |
+| Activator as destination | Not supported | Not supported |
+| **Eventhouse** | | |
+| OneLake ingestion | Not supported | Not documented |
+| Eventstream consumption | Not documented | Not supported |
+| Shortcut creation | Not supported | Not documented |
+| Pipeline connection | Not supported | Not documented |
+| Queued ingestion | Not supported | Not documented |
+| T-SQL queries / SQL Server TDS endpoints | Not supported | Not supported |
+| **Mirroring** | | |
+| Most mirrored database types | Paused when Block Public Internet Access enabled — only open mirroring, Cosmos DB, Azure SQL MI, SQL Server 2025 supported | Paused when public access restricted — same supported types as tenant-level |
+| **Azure Events** | | |
+| Azure Events (Block Public Internet Access) | New event delivery blocked; existing configs stop delivering | Not documented |
+| **Other** | | |
+| Private link REST APIs | Do not support tags | Not documented |
+| Dataflow Gen2 VNet gateway | Not documented | Must reside in same VNet as workspace-level PL endpoint |
+
+---
+
 ## Tenant Admin Enablement Required for Workspace Controls
 
 Workspace-level inbound rules (private links, IP firewall) are **disabled by default** at the workspace level. A Fabric tenant administrator must enable the **"Configure workspace-level inbound network rules"** tenant setting before workspace admins can apply workspace-level restrictions.
