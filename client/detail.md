@@ -61,13 +61,15 @@ The RFP contains **no mention of Private Link, network isolation, VNet, or priva
 
 ### Compliance Framework Analysis
 
-**APRA CPS 234**: Outcome-based standard for APRA-regulated entities. Requires controls proportionate to information asset classification — does not mandate Private Link specifically. Requires annual security testing, board-level accountability, and 72-hour APRA notification for material incidents. Whether network isolation is required depends on the risk assessment for classified information assets — a risk-based determination, not a prescriptive mandate.
+> Full analysis: [docs/05-compliance/regulatory-compliance.md](../docs/05-compliance/regulatory-compliance.md)
+
+**APRA CPS 234**: Outcome-based standard for APRA-regulated entities. Requires controls proportionate to information asset classification — does not mandate Private Link specifically. Requires annual security testing, board-level accountability, and 72-hour APRA notification for material incidents. Whether network isolation is required depends on the risk assessment for classified information assets — a risk-based determination, not a prescriptive mandate. Note: Microsoft's APRA coverage is documented at the Azure level, not Fabric-specifically; Fabric inherits Azure's posture and the customer/partner configures Fabric controls to satisfy CPS 234.
 
 **PCI-DSS**: Has prescriptive network control requirements (Requirement 1: network security controls; Requirement 1.3: restrict inbound and outbound traffic to what is necessary). **PCI-DSS scope only applies to systems that store, process, or transmit cardholder data (card numbers, CVVs, expiry dates).** If no cardholder data flows through Fabric, PCI-DSS network requirements do not apply. **This is the single most important compliance question to resolve — it determines whether network-layer controls are contractually required.**
 
-**GDPR**: Requires appropriate technical and organisational measures for personal data. Encryption, access controls, audit logging, and breach notification processes satisfy the relevant obligations. Does not mandate network isolation.
+**GDPR**: Requires appropriate technical and organisational measures for personal data. Encryption, access controls, audit logging, and breach notification processes satisfy the relevant obligations. Fabric holds ISO 27701 (privacy information management, GDPR-aligned) and ISO 27018 (cloud personal data). Does not mandate network isolation.
 
-**Australian Privacy Act**: Outcome-based; same conclusion as GDPR. No network architecture mandate.
+**Australian Privacy Act**: Outcome-based; same conclusion as GDPR. No network architecture mandate. Microsoft's Data Protection Addendum commitments are designed to satisfy APP 8 (cross-border disclosure) obligations.
 
 ### Implication for Network Architecture
 
