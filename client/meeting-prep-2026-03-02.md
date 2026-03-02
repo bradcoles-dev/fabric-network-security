@@ -31,25 +31,27 @@ Lead with this. It reframes the conversation from "you must have it" to "what ri
 
 If the cyber team asks for "everything private," they will likely mean tenant-level Private Link. This is where you need to be direct about what breaks.
 
-| What breaks under tenant-level PL + Block Public Internet Access | Client impact |
-|------------------------------------------------------------------|--------------|
-| OPDG cannot register with Fabric | **Sybase ASE ingestion fails entirely** — no workaround |
-| Sensitivity labels greyed out in Power BI Desktop | Purview MIP labelling cannot be applied — likely a compliance requirement itself |
-| Capacity Metrics App stops working | No capacity monitoring for PROD — operational blind spot |
-| OneLake Catalog Govern tab unavailable | Reduced Purview governance capability |
-| Cannot enable both inbound PL and outbound protection via portal | Requires REST API — adds operational complexity |
+| What breaks under tenant-level PL + Block Public Internet Access | Client impact | Confirmed for workspace-level PL? |
+|------------------------------------------------------------------|--------------|----------------------------------|
+| OPDG cannot register with Fabric | **Sybase ASE ingestion fails entirely** — no workaround | ✅ Does NOT apply — workspace-level PL keeps public endpoints available for OPDG |
+| Sensitivity labels greyed out in Power BI Desktop | Purview MIP labelling cannot be applied — likely a compliance requirement itself | ⚠️ **Unknown** — not documented either way for workspace-level PL |
+| Capacity Metrics App stops working | No capacity monitoring for PROD — operational blind spot | ✅ Does NOT apply — confirmed functional under workspace-level PL |
+| OneLake Catalog Govern tab unavailable | Reduced Purview governance capability | ⚠️ **Unknown** — documented for tenant-level PL; workspace-level PL behaviour not confirmed |
+| Cannot enable both inbound PL and outbound protection via portal | Requires REST API — adds operational complexity | ⚠️ **Unknown** — likely applies; not confirmed |
 
-The OPDG dependency alone is a hard blocker. OPDG registers at the tenant level — there is no workaround that preserves both tenant-level Block Public Internet Access and a functioning OPDG. This is documented Microsoft behaviour, not a configuration gap.
+The OPDG dependency alone is a hard blocker for tenant-level PL. OPDG registers at the tenant level — there is no workaround that preserves both tenant-level Block Public Internet Access and a functioning OPDG. This is documented Microsoft behaviour, not a configuration gap.
 
-**If they push back:** Microsoft's own guidance is that workspace-level Private Link is the recommended path when OPDG must coexist with private network isolation.
+**Critical caveat on workspace-level PL:** Microsoft's documentation on workspace-level Private Link limitations is incomplete. Several limitations that are confirmed for tenant-level PL — sensitivity labels, OneLake Catalog, outbound protection — are not explicitly documented as either present or absent for workspace-level PL. It is possible workspace-level PL inherits some of the same restrictions. **We cannot guarantee workspace-level PL is fully functional without testing against this client's specific workload configuration.**
+
+**If they push back:** Microsoft's own guidance is that workspace-level Private Link is the recommended path when OPDG must coexist with private network isolation — but that recommendation is about the OPDG constraint specifically, not a blanket assurance that all features work.
 
 ---
 
-### 3. Workspace-level Private Link is viable — but carry the overhead discussion
+### 3. Workspace-level Private Link may be viable — but comes with uncertainty and overhead
 
-Workspace-level PL avoids the OPDG blocker, preserves the Capacity Metrics App, and preserves sensitivity labels. It is the right architecture if network isolation is genuinely required.
+Workspace-level PL avoids the OPDG blocker and is confirmed to preserve the Capacity Metrics App. However, **Microsoft's documentation on what else breaks at workspace-level is incomplete** — several limitations that are confirmed for tenant-level PL (sensitivity labels, OneLake Catalog, outbound access protection) are not documented either way for workspace-level PL. It is possible workspace-level PL inherits some of the same restrictions. We would need to test before committing to this architecture.
 
-The honest overhead:
+The honest overhead beyond the uncertainty:
 - Each workspace gets its own private link service + private endpoint in the client VNet + DNS entry
 - **10–20 workspaces × 3 environments = 30–60+ provisioning operations minimum**
 - Must be configured **before** creating any Lakehouse, Warehouse, or Mirrored Database in each workspace — cannot be retrofitted (default semantic model compatibility issue)
@@ -108,7 +110,7 @@ These are diagnostic — the answers determine whether workspace PL is required 
    *(Each of these has targeted controls; private networking is not the only answer to any of them)*
 
 4. **"Are sensitivity labels / Purview information protection in scope for this project?"**
-   *(If yes, tenant-level Private Link is immediately off the table — they are mutually exclusive)*
+   *(If yes, tenant-level Private Link is immediately off the table — they are mutually exclusive. Workspace-level PL behaviour is unconfirmed and would need to be tested before committing)*
 
 5. **"What is your ZScaler bypass change process — and what's the typical lead time?"**
    *(This will gate any Private Link implementation regardless of what's decided today)*
@@ -118,15 +120,15 @@ These are diagnostic — the answers determine whether workspace PL is required 
 ## What a Good Outcome Looks Like
 
 The best outcome is agreement on a tiered model where:
-- Workspace-level Private Link is applied to PROD Gold/reporting workspaces
+- Tenant-level PL is explicitly off the table, documented with reasons
+- Workspace-level PL is agreed as the direction for Tier 1, subject to a proof-of-concept to confirm which features remain functional (sensitivity labels, OneLake Catalog, outbound protection)
 - IP Firewall + Conditional Access covers Silver/UAT
 - DEV operates on Entra + CA baseline
-- Tenant-level PL is explicitly off the table, documented with reasons
-- The cyber team understands the OPDG constraint and accepts workspace-level PL as the architectural boundary
+- The cyber team understands both the OPDG constraint and the documentation gaps, and accepts that a testing phase is required before committing
 
-A workable second outcome is agreement that the cyber team will review the specific limitations and come back with a revised position — better than agreeing to something in the meeting that breaks the architecture.
+A workable second outcome is agreement that the cyber team will review the specific limitations and come back with a revised position — better than committing to an architecture in the meeting before the full picture is known.
 
-The outcome to avoid is a blanket "everything must be behind Private Link" directive that includes tenant-level PL, agreed without the cyber team understanding what it breaks.
+The outcome to avoid is a blanket directive — whether tenant-level or workspace-level PL for everything — agreed without the cyber team understanding what may break and without a testing phase built into the plan.
 
 ---
 
