@@ -101,25 +101,46 @@ Microsoft contractually commits to storing customer data at rest in the Australi
 
 ## 4. PCI-DSS
 
-### 4.1 Scope Is the Critical Question
+### 4.1 Scope Assessment — Client-Specific Position
 
-PCI-DSS prescriptive network controls (Requirement 1: network security controls; Requirement 1.3: restrict inbound/outbound traffic) **only apply to systems that store, process, or transmit cardholder data** (PANs, CVVs, expiry dates).
+PCI-DSS scope is driven by the presence of the **primary account number (PAN)**. A system that stores, processes, or transmits a PAN is part of the cardholder data environment (CDE) and subject to PCI-DSS controls. Other card data elements (expiry date, cardholder name) only bring a system into scope if a PAN is also present.
 
-**If no cardholder data flows through Fabric, PCI-DSS network requirements do not apply to the Fabric environment.**
+**Confirmed data elements from client:**
 
-This is the single most important compliance question to resolve before designing the network architecture. Possible outcomes:
+| Data Element | Status | PCI-DSS Implication |
+|--------------|--------|---------------------|
+| PAN | Partially masked before ingestion | Potentially out of scope — depends on masking standard met (see below) |
+| Expiry date | Not masked | Expiry date alone does not create PCI-DSS scope; only relevant if PAN is also present |
+| CVV / CVC | Not ingested | Correct — CVV is Sensitive Authentication Data (SAD); must never be stored post-authorisation |
+| PIN | Not ingested | Correct — PIN blocks are SAD; must never be stored |
 
-| Cardholder data in Fabric? | PCI-DSS implication |
-|---------------------------|---------------------|
-| No | PCI-DSS network requirements do not apply; scope limited to other systems |
-| Tokenised data only | Depending on token format, may be out of scope — confirm with QSA |
-| Yes | Fabric workspaces handling CHD must meet PCI-DSS network controls (inbound/outbound restriction, segmentation) |
+**Client note:** Expiry date and masked PAN may also not be required for ingestion. If they can be excluded, the scoping question is resolved cleanly.
 
-### 4.2 Azure PCI-DSS Attestation
+### 4.2 The Masked PAN Question
+
+Whether Fabric is in PCI-DSS scope hinges on how the PAN is masked:
+
+- **PCI-DSS v4.0 Req 3.5.1** permits display of no more than the first six and last four digits of a PAN (e.g., `4111 12** **** 3456`). A PAN truncated to this standard is generally considered not to be a PAN for PCI-DSS purposes — the data element is no longer sensitive in isolation.
+- If the masking applied upstream meets this standard **before the data reaches Fabric**, Fabric is not exposed to a PAN and is likely outside PCI-DSS scope.
+- If the masking is less aggressive (e.g., only last four masked, leaving enough digits to reconstruct the full PAN in combination with other fields), scope is less clear.
+- **This must be confirmed with a QSA.** The masking format, where masking occurs in the pipeline, and whether any process upstream of Fabric holds the full PAN all affect the determination.
+
+**Recommended position:** If expiry date and masked PAN are not required for the analytics use case, exclude them from ingestion entirely. This removes the scoping ambiguity and keeps Fabric unambiguously outside the CDE.
+
+### 4.3 Scope Outcomes
+
+| Scenario | PCI-DSS implication for Fabric |
+|----------|-------------------------------|
+| Expiry date and masked PAN excluded from ingestion | Fabric is outside PCI-DSS scope — no CHD present |
+| Masked PAN ingested, masking meets first-6/last-4 standard | Likely out of scope — confirm with QSA |
+| Masked PAN ingested, masking does not meet standard | Potentially in scope — QSA determination required |
+| Full PAN ever present in Fabric (including in transit or temp storage) | In scope — full PCI-DSS CDE controls apply |
+
+### 4.4 Azure PCI-DSS Attestation
 
 Azure holds a PCI-DSS Attestation of Compliance (AoC). Fabric, as an Azure-based service, can operate within a PCI-DSS compliant Azure environment. The customer is still responsible for configuring Fabric in accordance with PCI-DSS requirements if cardholder data is in scope.
 
-### 4.3 Relevant Controls If In-Scope
+### 4.5 Relevant Controls If In-Scope
 
 If Fabric does process cardholder data, the following Fabric controls are directly relevant:
 
@@ -188,7 +209,7 @@ APP 8 requires that entities transferring personal information overseas take rea
 | Physical security | All | ✅ Microsoft manages | — |
 | Infrastructure encryption | CPS 234 (Req: protect information assets); PCI-DSS Req 3; GDPR Art 32; Privacy Act APP 11 | ✅ Default MMK at rest; TLS in transit | Enable CMK if required |
 | Platform authentication | CPS 234; PCI-DSS Req 8; GDPR Art 32; Privacy Act APP 11 | ✅ Entra ID enforced | Configure Conditional Access policies |
-| Network isolation | PCI-DSS Req 1 (if CHD in scope); CPS 234 (risk-assessment driven, not prescribed) | ✅ Infrastructure | Configure controls per risk assessment and cyber policy (IP Firewall, Conditional Access minimum; Private Link if policy or PCI-DSS segmentation requires it) |
+| Network isolation | PCI-DSS Req 1 (if CHD in scope — likely out of scope pending QSA confirmation); CPS 234 (risk-assessment driven, not prescribed) | ✅ Infrastructure | Configure controls per risk assessment and cyber policy (IP Firewall, Conditional Access minimum; Private Link if policy requires it) |
 | Access control | CPS 234; PCI-DSS Req 7; GDPR Art 5/32; Privacy Act APP 6/11 | ✅ RBAC framework provided | Implement Entra groups; assign workspace roles; define RLS/CLS/OLS |
 | Audit logging | CPS 234 (testing & assurance); PCI-DSS Req 10; GDPR (accountability) | ✅ Logs generated | Configure export to Log Analytics; set retention policy |
 | Incident notification | CPS 234 (72-hr APRA notification); GDPR Art 33 (72-hr supervisory authority notification); Privacy Act (eligible data breach — OAIC notification) | ✅ Notify customer per SLA | Maintain notification processes and incident response plan covering all applicable regulators |
@@ -214,7 +235,8 @@ Compliance Manager is accessible via the [Microsoft Purview portal](https://comp
 
 | Action | Owner | Priority |
 |--------|-------|----------|
-| Confirm whether cardholder data flows through Fabric (PCI-DSS scoping) | Client — Risk/Compliance | Critical |
+| Confirm whether expiry date and masked PAN can be excluded from Fabric ingestion entirely (cleanest path to out-of-scope) | Client — Risk/Compliance + Data | Critical |
+| If any card data is retained, confirm masking format meets PCI-DSS first-6/last-4 standard and obtain QSA sign-off on scope determination | Client — Risk/Compliance | Critical |
 | Commission formal APRA risk assessment for cloud outsourcing arrangement | Client — Risk | Critical |
 | Enable Fabric audit log export to Log Analytics + configure retention | Partner | Must Have |
 | Configure Conditional Access targeting all five Fabric-dependent services | Partner | Must Have |
