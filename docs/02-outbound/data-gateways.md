@@ -7,7 +7,8 @@
 > - [Create shortcuts to on-premises data](https://learn.microsoft.com/en-us/fabric/onelake/create-on-premises-shortcut) — OPDG-backed OneLake shortcuts
 > - [Blog: Mission-Critical Data Integration — What's New in Fabric Data Factory](https://blog.fabric.microsoft.com/en-us/blog/mission-critical-data-integration-whats-new-in-fabric-data-factory/) — Oct 2, 2025
 > - [Blog: Fabric October 2025 Feature Summary](https://blog.fabric.microsoft.com/en-us/blog/fabric-october-2025feature-summary) — Oct 29, 2025
-> Last reviewed: 2026-02-25
+> - [Blog: Fabric March 2026 Feature Summary](https://blog.fabric.microsoft.com/en-us/blog/fabric-march-2026-feature-summary) — Mar 2026
+> Last reviewed: 2026-03-19
 
 ## Feature Timeline
 
@@ -15,6 +16,9 @@
 |------|-------|
 | Oct 2025 | **VNet data gateway for Pipelines and Copy Jobs** goes **GA** — previously only supported Dataflows Gen2 and semantic model refresh |
 | Oct 2025 | **VNet data gateway lifecycle controls** (start, stop, restart) go **GA** |
+| Mar 2026 | **VNet data gateway — certificate and proxy support** goes **GA** |
+| Mar 2026 | **VNet data gateway — up to 9 instances** per gateway goes **GA** (up from previous limit) — enables HA deployments |
+| Mar 2026 | **VNet data gateway — PowerShell management** goes **GA** |
 
 > **Impact of VNet gateway GA for Pipelines**: Prior to Oct 2025, Data Factory Pipelines and Copy Jobs could only connect to private data sources via the on-premises data gateway or by using trusted workspace access. The VNet gateway GA added a fully managed, Azure-native option without requiring on-premises infrastructure.
 
@@ -50,6 +54,11 @@ The VNet data gateway allows Fabric to inject compute containers into your Azure
 - Power BI semantic model refresh
 - Data Factory Pipelines and Copy Jobs (GA as of Oct 2025)
 - Works alongside tenant-level Private Link (unlike OPDG)
+
+**March 2026 enhancements (all GA):**
+- **Certificate and proxy support** — allows VNet gateways deployed behind corporate proxies or requiring custom TLS certificates
+- **Up to 9 instances per gateway** — enables active-active high availability deployments
+- **PowerShell management** — gateway lifecycle and configuration manageable via PowerShell
 
 **Common use case:** Connecting to Azure SQL, Azure Synapse, or other Azure PaaS services behind private endpoints or VNet firewalls.
 

@@ -1,7 +1,7 @@
 # Permission Model
 
 > **Source:** [Permission model — Microsoft Fabric](https://learn.microsoft.com/en-us/fabric/security/permission-model)
-> Last reviewed: 2026-02-24
+> Last reviewed: 2026-03-19
 
 ## Overview
 
@@ -117,6 +117,27 @@ When sharing reports via a Power BI app:
 - DirectLake fallback to DirectQuery happens if SQL security is defined — plan accordingly
 
 ---
+
+---
+
+## Data Loss Prevention (DLP) — Access Restriction Layer
+
+> **Source:** Fabric March 2026 Feature Summary — Preview
+
+DLP in Fabric can now enforce **access restrictions** (not just detection and alerting) when sensitive data is identified. This adds an enforcement layer on top of the permission model above.
+
+**DLP Restrict Access (Preview — March 2026)**
+
+When a DLP policy detects sensitive data in a supported item, it can automatically restrict user access to that item until the issue is remediated or the policy is overridden by an authorized reviewer.
+
+**Supported item types:**
+- Warehouses
+- KQL databases
+- SQL databases
+- Lakehouses
+- Semantic models
+
+**Key design implication**: DLP access restriction operates *above* the workspace/item permission model — a user with a Viewer or Contributor role can be blocked from an item by DLP policy even if their workspace permissions would otherwise allow access. Plan DLP policy rollout with this in mind, particularly for automated data pipelines where a DLP trigger could block downstream consumers.
 
 ## Per-Item Permission References
 

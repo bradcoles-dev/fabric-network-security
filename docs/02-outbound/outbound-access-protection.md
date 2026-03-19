@@ -5,7 +5,8 @@
 > - [Blog: Introducing Workspace Outbound Access Protection for Spark — Preview](https://blog.fabric.microsoft.com/en-us/blog/introducing-workspace-outbound-access-protection-for-spark-preview) — Sep 3, 2025
 > - [Blog: Fabric October 2025 Feature Summary](https://blog.fabric.microsoft.com/en-us/blog/fabric-october-2025feature-summary) — Oct 29, 2025
 > - [Blog: Mission-Critical Data Integration — What's New in Fabric Data Factory](https://blog.fabric.microsoft.com/en-us/blog/mission-critical-data-integration-whats-new-in-fabric-data-factory/) — Oct 2, 2025
-> Last reviewed: 2026-02-24
+> - [Blog: Fabric March 2026 Feature Summary](https://blog.fabric.microsoft.com/en-us/blog/fabric-march-2026-feature-summary) — Mar 2026
+> Last reviewed: 2026-03-19
 
 ## Feature Timeline
 
@@ -14,6 +15,8 @@
 | Sep 3, 2025 | Outbound Access Protection for **Spark** (Data Engineering) enters **Preview** — only Data Engineering artifacts (Notebooks, Spark Job Definitions, Lakehouses, Environments) permitted in OAP-enabled workspaces at launch |
 | Oct 2, 2025 | Data Factory outbound access protection for **Pipelines and Copy Jobs** announced — "coming soon" in the Data Factory blog |
 | Oct 29, 2025 | OAP for Spark goes **GA** — announced in October 2025 Feature Summary; VNet gateway for Pipelines/Copy Jobs also confirmed GA |
+| Mar 2026 | OAP for **Warehouse** goes **GA** — Warehouses now have native outbound access protection support |
+| Mar 2026 | OAP for **Data Agents** enters **Preview** — workspace-level outbound protection extended to AI data agents |
 
 > **Preview workspace constraint**: At the Sep 2025 preview launch, workspaces enabling outbound access protection for Spark could only contain Data Engineering artifacts. Items from other workloads (e.g., warehouses, data factory pipelines) had to be in separate workspaces. Check current documentation for whether this constraint was relaxed at GA.
 
@@ -37,7 +40,8 @@ When outbound access protection is enabled:
 |----------|--------------------|-----------------|
 | Data Engineering | Managed private endpoints | Lakehouses, Notebooks, Spark Job Definitions, Environments |
 | Data Factory | Data connection rules | Dataflows Gen2 (CI/CD), Pipelines, Copy Jobs |
-| Data Warehouse | Not applicable (warehouse has no configurable outbound exception) | Warehouses, SQL analytics endpoints |
+| Data Warehouse | Native OAP (GA Mar 2026) | Warehouses, SQL analytics endpoints |
+| Data Agents | Native OAP (Preview Mar 2026) | AI data agents |
 | Mirrored databases | Data connection rules | Azure SQL DB, Snowflake, Cosmos DB, Azure SQL MI, PostgreSQL, SQL Server, Oracle, Google BigQuery |
 | OneLake | Managed private endpoints | OneLake shortcuts |
 

@@ -1,7 +1,9 @@
 # Managed Virtual Networks
 
-> **Source:** [Overview of managed virtual networks in Microsoft Fabric](https://learn.microsoft.com/en-us/fabric/security/security-managed-vnets-fabric-overview)
-> Last reviewed: 2026-02-24
+> **Sources:**
+> - [Overview of managed virtual networks in Microsoft Fabric](https://learn.microsoft.com/en-us/fabric/security/security-managed-vnets-fabric-overview)
+> - [Blog: Fabric March 2026 Feature Summary](https://blog.fabric.microsoft.com/en-us/blog/fabric-march-2026-feature-summary) — Mar 2026
+> Last reviewed: 2026-03-19
 
 ## What They Are
 
@@ -35,6 +37,15 @@ This means:
 - The trade-off is isolated compute with secure outbound connectivity
 
 > **Enterprise planning note**: If your workloads are latency-sensitive (interactive notebook sessions, real-time debugging workflows), factor in this cold start overhead when evaluating whether to use managed private endpoints or tenant-level private links. This is a significant operational change for data engineering teams.
+
+### Mitigation: Custom Live Pools (GA March 2026)
+
+**Custom Live Pools** are a GA mitigation for the cold start penalty in managed VNet workspaces. They provide warm, pre-configured Spark clusters that remain running rather than spinning up on demand.
+
+- Custom Live Pools work within managed VNets and Private Link–enabled environments
+- Eliminates the 3–5 minute cold start for configured pools
+- Trade-off: idle cluster cost vs. latency reduction — appropriate for interactive or frequent workloads
+- If cold start is a blocker for adopting managed VNets, Custom Live Pools should be evaluated first
 
 ## Regional Availability
 
